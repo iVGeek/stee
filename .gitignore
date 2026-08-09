@@ -1,0 +1,11 @@
+node_modules/
+dist/
+data/
+.env
+.env.*
+!.env.example
+*.log
+npm-debug.log*
+public/assets/app.js
+public/assets/app.js.map
+.DS_Store
