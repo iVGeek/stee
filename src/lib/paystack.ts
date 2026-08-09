@@ -41,7 +41,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     data?: T;
   } | null;
   if (!res.ok || !json?.status) {
-    throw new PaystackError(json?.message ?? `Paystack request failed (${res.status})`, res.status);
+    // Upstream failure — return 502 so clients know it's not their fault, without
+    // leaking Paystack's internal status codes (e.g. 401 for an invalid key).
+    throw new PaystackError(json?.message ?? `Paystack request failed (${res.status})`, 502);
   }
   return json.data as T;
 }

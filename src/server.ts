@@ -21,17 +21,22 @@ app.use(
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "https://js.paystack.co"],
-        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://paystack.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
         imgSrc: ["'self'", "data:", "https:"],
-        connectSrc: ["'self'", "https://api.paystack.co"],
-        frameSrc: ["'self'", "https://checkout.paystack.com", "https://*.paystack.co"],
+        connectSrc: ["'self'", "https://api.paystack.co", "https://paystack.com"],
+        frameSrc: ["'self'", "https://checkout.paystack.com", "https://*.paystack.co", "https://paystack.com"],
         objectSrc: ["'none'"],
         baseUri: ["'self'"],
         formAction: ["'self'"],
         frameAncestors: ["'none'"],
       },
     },
+    // Paystack opens a cross-origin checkout (popup/iframe), so popups must be allowed.
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+    // Paystack's inline script injects a stylesheet from paystack.com; CORP: same-origin
+    // would block that cross-origin subresource load.
+    crossOriginResourcePolicy: false,
   }),
 );
 
