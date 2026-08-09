@@ -151,6 +151,7 @@ async function loadConfig(): Promise<void> {
 function initNav(): void {
   const toggle = $("#navToggle");
   const links = $("#primaryNav");
+  const header = $("#siteHeader");
   if (!toggle || !links) return;
   toggle.addEventListener("click", () => {
     const open = links.classList.toggle("open");
@@ -164,6 +165,14 @@ function initNav(): void {
       toggle.setAttribute("aria-expanded", "false");
     }),
   );
+
+  const onScroll = () => {
+    if (!header) return;
+    const scrolled = window.scrollY > 8;
+    header.classList.toggle("scrolled", scrolled);
+  };
+  onScroll();
+  window.addEventListener("scroll", onScroll, { passive: true });
 }
 
 /* --------------------------------------------------------------------------
