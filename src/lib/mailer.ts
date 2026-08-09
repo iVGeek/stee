@@ -34,7 +34,7 @@ export async function sendMail(input: MailInput): Promise<boolean> {
   }
   try {
     await t.sendMail({
-      from: config.mail.from || `"Stee Counselling" <${config.mail.user}>`,
+      from: config.mail.from || `"Kizito Moraa Counselling" <${config.mail.user}>`,
       to: input.to,
       subject: input.subject,
       html: input.html,
@@ -50,14 +50,14 @@ function shell(title: string, bodyHtml: string): string {
   return `
   <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;border:1px solid #e7e2d9;border-radius:12px;overflow:hidden">
     <div style="background:#3b5f48;padding:20px 28px">
-      <span style="color:#fbf9f4;font-size:18px;font-weight:700">Stee Counselling</span>
+      <span style="color:#fbf9f4;font-size:18px;font-weight:700">Kizito Moraa Counselling</span>
     </div>
     <div style="padding:28px">
       <h2 style="color:#22312b;margin:0 0 12px;font-size:20px">${title}</h2>
       ${bodyHtml}
     </div>
     <div style="background:#f4f1ea;padding:16px 28px;color:#6a756f;font-size:12px">
-      Automated message from the Stee Counselling website.
+      Automated message from the Kizito Moraa website.
     </div>
   </div>`;
 }

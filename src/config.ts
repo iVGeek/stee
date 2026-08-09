@@ -9,7 +9,7 @@ export interface PriceOption {
   id: string;
   label: string;
   duration: string;
-  price: number; // in kobo? No — in main currency units (e.g. NGN)
+  price: number; // in main currency units (e.g. KES)
   description: string;
 }
 
@@ -21,7 +21,7 @@ export const config = {
   adminEmail: process.env.ADMIN_EMAIL ?? "",
   adminToken: process.env.ADMIN_TOKEN ?? "change-me-admin-token",
   whatsappNumber: process.env.WA_NUMBER ?? "",
-  currency: "NGN",
+  currency: "KES",
   paystack: {
     publicKey: process.env.PAYSTACK_PUBLIC_KEY ?? "",
     secretKey: process.env.PAYSTACK_SECRET_KEY ?? "",
@@ -37,32 +37,32 @@ export const config = {
   },
   pricing: [
     {
-      id: "single",
-      label: "Single Session",
-      duration: "60 minutes",
-      price: 25000,
-      description: "One focused one-on-one session for personal, anxiety, stress or relational concerns.",
+      id: "individual-physical",
+      label: "Individual Therapy (In-person)",
+      duration: "45 min – 1 hour",
+      price: 2500,
+      description: "One-on-one support for depression, anxiety, trauma, grief and life transitions.",
+    },
+    {
+      id: "individual-online",
+      label: "Individual Therapy (Online)",
+      duration: "45 min – 1 hour",
+      price: 2000,
+      description: "Secure video or phone sessions for clients who prefer online therapy.",
     },
     {
       id: "couples",
-      label: "Couples Session",
-      duration: "90 minutes",
-      price: 35000,
-      description: "A joint session to improve communication, rebuild trust and strengthen connection.",
+      label: "Couples Therapy",
+      duration: "45 min – 1 hour",
+      price: 4500,
+      description: "Improve communication, resolve conflict and rebuild trust together.",
     },
     {
-      id: "online",
-      label: "Online Session",
-      duration: "60 minutes · video/phone",
-      price: 20000,
-      description: "The same care, from the comfort of your home. Available worldwide via video or phone.",
-    },
-    {
-      id: "package4",
-      label: "Package of 4 Sessions",
-      duration: "4 × 60 minutes",
-      price: 90000,
-      description: "A structured series for lasting progress. Save compared to four single sessions.",
+      id: "consultation",
+      label: "Consultation",
+      duration: "30 min – 1 hour",
+      price: 1000,
+      description: "A focused first conversation to understand your needs and plan your care.",
     },
   ] as PriceOption[],
 } as const;
@@ -72,7 +72,7 @@ export function getPriceOption(id: string): PriceOption | undefined {
 }
 
 export function formatMoney(amount: number): string {
-  return new Intl.NumberFormat("en-NG", {
+  return new Intl.NumberFormat("en-KE", {
     style: "currency",
     currency: config.currency,
     maximumFractionDigits: 0,

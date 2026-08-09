@@ -1,10 +1,10 @@
-# Stee Counselling — Counselling Psychologist Website
+# Kizito Moraa — Licensed Counseling Psychologist Website
 
-A modern, fast, fully responsive website for a counselling psychologist with:
+A modern, fast, fully responsive website for a licensed counseling psychologist in Kenya with:
 
 - **Session booking** — a 3-step wizard (your details → session → review & pay)
-- **Paystack payments** — secure card/bank payments with server-side verification
-- **Real client feedback** — public reviews with star ratings and admin moderation
+- **Paystack payments** — secure card/M-Pesa payments (KES) with server-side verification
+- **Real client feedback** — public reviews with star ratings, admin moderation, and seeded starter testimonials
 - **Email integration** — SMTP notifications for bookings, feedback and contact messages
 - **WhatsApp integration** — one-tap chat links and a "pay later on WhatsApp" booking path
 - **SEO + performance** — semantic HTML, structured data, security headers, lazy animation, mobile-first CSS
@@ -70,16 +70,20 @@ Copy `.env.example` to `.env` and fill in your values.
 | `SMTP_SECURE` | no | `true` for 465 (SSL), `false` for 587 (STARTTLS). |
 | `SMTP_USER` | for email | e.g. your Gmail address (use an app password). |
 | `SMTP_PASS` | for email | App password / SMTP password. |
-| `MAIL_FROM` | no | Display sender, e.g. `"Stee Counselling <you@gmail.com>"`. |
+| `MAIL_FROM` | no | Display sender, e.g. `"Kizito Moraa Counselling <you@gmail.com>"`. |
 | `ADMIN_EMAIL` | for email | Where booking/feedback/contact notifications are sent. |
-| `WA_NUMBER` | yes | Your WhatsApp number in international format, digits only (e.g. `2348012345678`). |
+| `WA_NUMBER` | yes | Your WhatsApp number in international format, digits only (e.g. `254700096993`). |
 | `ADMIN_TOKEN` | yes | Secret for the feedback moderation endpoints. Generate something long/random. |
 
 > **No Paystack keys yet?** The site still works — the "Pay now" button explains payments are unavailable and clients can use the WhatsApp path. Same for email: if SMTP isn't configured, the site logs a warning and continues.
 
 ### Fees & pricing
 
-Session types, labels, durations and prices live in `src/config.ts` → `config.pricing`. The client fetches these from `GET /api/config`, so pricing cards and the booking form update automatically from one place.
+Session types, labels, durations and prices live in `src/config.ts` → `config.pricing` (Kenyan Shillings). The client fetches these from `GET /api/config`, so pricing cards and the booking form update automatically from one place.
+
+### Starter testimonials
+
+When the feedback store is empty, `src/lib/seed.ts` seeds three approved sample testimonials on server start so the reviews carousel is never empty. New reviews still go to moderation. Delete the seeds via the admin API if you prefer to start blank.
 
 ---
 
@@ -153,12 +157,13 @@ All page copy is in `public/index.html` (search for the highlighted placeholders
 | What | Where |
 |---|---|
 | Therapist name & bio | `public/index.html` — hero, `#about` section |
-| Practice name / footer brand | `public/index.html` (`Stee Counselling`) |
+| Practice name / footer brand | `public/index.html` |
 | Logo | inline SVG in the header (`brand-mark`) |
 | Colors & fonts | CSS variables at the top of `public/assets/styles.css` |
-| Session types & prices | `src/config.ts` → `config.pricing` |
+| Session types & prices (KES) | `src/config.ts` → `config.pricing` |
 | Email address shown in footer | `public/app.ts` (`loadConfig`) and `.env` → `ADMIN_EMAIL` |
 | WhatsApp number | `.env` → `WA_NUMBER` |
+| Starter testimonials | `src/lib/seed.ts` |
 | FAQ / services / hero copy | `public/index.html` |
 
 ---
@@ -173,10 +178,11 @@ stee/
 │   ├── app.ts               # client logic (bundled → assets/app.js)
 │   └── assets/styles.css
 └── src/                     # Backend
-    ├── server.ts            # Express app, security headers, rate limits
+    ├── server.ts            # Express app, security headers, rate limits, seed on boot
     ├── config.ts            # env config + pricing
     ├── lib/
     │   ├── store.ts         # JSON file storage
+    │   ├── seed.ts          # starter testimonials (seeded when feedback store is empty)
     │   ├── paystack.ts      # Paystack initialize/verify client
     │   ├── mailer.ts        # Nodemailer templates
     │   └── http.ts          # helpers, async wrapper, booking codes

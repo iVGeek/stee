@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { config } from "./config.js";
+import { seedIfEmpty } from "./lib/seed.js";
 import { bookingsRouter } from "./routes/bookings.js";
 import { feedbackRouter } from "./routes/feedback.js";
 import { contactRouter } from "./routes/contact.js";
@@ -65,7 +66,7 @@ app.get("/api/config", (_req, res) => {
   res.json({
     ok: true,
     site: {
-      name: "Stee Counselling",
+      name: "Kizito Moraa",
       currency: config.currency,
       whatsappNumber: config.whatsappNumber,
       paymentsEnabled: Boolean(config.paystack.publicKey && config.paystack.secretKey),
@@ -101,5 +102,6 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 app.listen(config.port, () => {
-  console.log(`[stee] server running at ${config.publicUrl} (${config.nodeEnv})`);
+  seedIfEmpty();
+  console.log(`[kizitomoraa] server running at ${config.publicUrl} (${config.nodeEnv})`);
 });

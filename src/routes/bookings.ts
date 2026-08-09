@@ -24,7 +24,7 @@ export interface Booking {
   createdAt: string;
 }
 
-const timeSlots = ["Morning (9:00-12:00)", "Afternoon (12:00-16:00)", "Evening (16:00-19:00)"] as const;
+const timeSlots = ["Morning (9:00-12:00)", "Afternoon (12:00-15:00)", "Late afternoon (15:00-17:00)"] as const;
 
 const bookingSchema = z.object({
   fullName: z.string().trim().min(2, "Please enter your full name").max(100),

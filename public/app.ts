@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Stee Counselling — client app
+   Kizito Moraa — client app
    ========================================================================== */
 export {};
 
@@ -93,7 +93,7 @@ function todayIso(): string {
 
 function formatMoney(amount: number, currency: string): string {
   try {
-    return new Intl.NumberFormat("en-NG", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount);
+    return new Intl.NumberFormat("en-KE", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount);
   } catch {
     return `${currency} ${amount}`;
   }
@@ -139,8 +139,8 @@ async function loadConfig(): Promise<void> {
 
   const email = $("a#contactEmail") as HTMLAnchorElement | null;
   if (email && config) {
-    email.textContent = "hello@stee.counselling";
-    email.href = "mailto:hello@stee.counselling";
+    email.textContent = "kizitomoraa@gmail.com";
+    email.href = "mailto:kizitomoraa@gmail.com";
   }
 }
 
@@ -200,7 +200,7 @@ function initPricing(): void {
   const site = config.site;
   grid.innerHTML = config.pricing
     .map((p) => {
-      const featured = p.id === "package4";
+      const featured = p.id === "individual-physical";
       return `
         <article class="pricing-card ${featured ? "featured" : ""}">
           ${featured ? '<span class="pricing-badge">Best value</span>' : ""}
