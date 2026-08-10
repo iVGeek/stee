@@ -81,3 +81,12 @@ export async function remove(table: TableName, id: string): Promise<boolean> {
   const result = await query(`DELETE FROM ${table} WHERE id = $1`, [id]);
   return (result.rowCount ?? 0) > 0;
 }
+
+/** Deletes every row in a table (used to purge legacy/bot data). */
+export async function clearAll(table: TableName): Promise<void> {
+  if (!usingDb) {
+    await writeJsonFile(table, []);
+    return;
+  }
+  await query(`TRUNCATE TABLE ${table}`);
+}

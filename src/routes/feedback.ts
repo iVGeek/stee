@@ -2,7 +2,7 @@ import { Router, type Request } from "express";
 import { z } from "zod";
 import { config } from "../config.js";
 import { randomId, asyncHandler, ApiError } from "../lib/http.js";
-import { insert, readAll, update, remove } from "../lib/store.js";
+import { insert, readAll, update, remove, clearAll } from "../lib/store.js";
 import { sendMail, feedbackNotificationEmail } from "../lib/mailer.js";
 
 export interface Feedback {
@@ -116,6 +116,16 @@ feedbackRouter.delete(
   asyncHandler(async (req, res) => {
     requireAdmin(req);
     if (!(await remove("feedback", req.params.id))) throw new ApiError(404, "Feedback not found");
+    res.json({ ok: true });
+  }),
+);
+
+// Admin: purge all feedback (e.g. clearing legacy bot reviews)
+feedbackRouter.delete(
+  "/admin",
+  asyncHandler(async (req, res) => {
+    requireAdmin(req);
+    await clearAll("feedback");
     res.json({ ok: true });
   }),
 );
