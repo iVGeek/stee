@@ -302,7 +302,25 @@ section[id] {
   overflow: hidden;
   padding: clamp(4.5rem, 9vw, 7.5rem) 0 clamp(4rem, 8vw, 6.5rem);
 }
-.hero-bg { position: absolute; inset: 0; z-index: 0; }
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(42% 48% at 18% 18%, rgba(161, 216, 181, 0.5), transparent 62%),
+    radial-gradient(38% 46% at 84% 78%, rgba(76, 181, 114, 0.2), transparent 62%),
+    radial-gradient(30% 34% at 72% 22%, rgba(214, 233, 228, 0.75), transparent 60%),
+    linear-gradient(160deg, #f6faf6 0%, #eef4ef 55%, #f8f5ec 100%);
+  background-size: 130% 130%, 130% 130%, 130% 130%, 100% 100%;
+  animation: auroraShift 22s ease-in-out infinite alternate;
+}
+
+@keyframes auroraShift {
+  0%   { background-position: 0% 0%, 100% 100%, 50% 50%, 0 0; }
+  50%  { background-position: 32% 42%, 68% 58%, 58% 30%, 0 0; }
+  100% { background-position: 62% 82%, 38% 28%, 32% 66%, 0 0; }
+}
 
 /* soft grain for editorial texture */
 .hero-bg::after {
@@ -789,7 +807,12 @@ section[id] {
   font-size: 1.85rem;
   font-weight: 700;
   color: var(--primary-dark);
-  margin-bottom: 0.7rem;
+  margin-bottom: 0.15rem;
+}
+.pricing-kes {
+  color: var(--muted);
+  font-size: 0.86rem;
+  margin-bottom: 0.8rem;
 }
 .pricing-desc { color: var(--muted); font-size: 0.92rem; margin-bottom: 1.3rem; }
 .pricing-card .btn { margin-top: auto; }

@@ -18,6 +18,7 @@ type SiteConfig = {
     currency: string;
     whatsappNumber: string;
     paymentsEnabled: boolean;
+    usdRate: number;
   };
   pricing: PriceOption[];
 };
@@ -97,6 +98,75 @@ function formatMoney(amount: number, currency: string): string {
   } catch {
     return `${currency} ${amount}`;
   }
+}
+
+function currentUsdRate(): number {
+  const r = config?.site.usdRate;
+  return typeof r === "number" && Number.isFinite(r) && r > 0 ? r : 129;
+}
+
+function formatUsd(priceKes: number): string {
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(priceKes / currentUsdRate());
+  } catch {
+    return `$${Math.round(priceKes / currentUsdRate())}`;
+  }
+}
+
+function celebrate(): void {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const canvas = document.createElement("canvas");
+  canvas.setAttribute("aria-hidden", "true");
+  canvas.style.cssText = "position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999;";
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    canvas.remove();
+    return;
+  }
+  const colors = ["#135e4b", "#4cb572", "#a1d8b5", "#d6a45c", "#e9c46a", "#ffffff"];
+  const pieces = Array.from({ length: 140 }, () => ({
+    x: Math.random() * canvas.width,
+    y: -20 - Math.random() * canvas.height * 0.4,
+    w: 6 + Math.random() * 7,
+    h: 8 + Math.random() * 8,
+    color: colors[Math.floor(Math.random() * colors.length)],
+    rot: Math.random() * Math.PI,
+    vr: (Math.random() - 0.5) * 0.25,
+    vx: (Math.random() - 0.5) * 2,
+    vy: 2 + Math.random() * 3,
+  }));
+  const start = performance.now();
+  const duration = 2600;
+  const tick = (now: number) => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const alpha = Math.max(0, 1 - (now - start) / duration);
+    for (const p of pieces) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.03;
+      p.rot += p.vr;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    }
+    if (now - start < duration) {
+      requestAnimationFrame(tick);
+    } else {
+      canvas.remove();
+    }
+  };
+  requestAnimationFrame(tick);
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -216,7 +286,8 @@ function initPricing(): void {
           ${featured ? '<span class="pricing-badge">Best value</span>' : ""}
           <h3>${escapeHtml(p.label)}</h3>
           <p class="pricing-duration">${escapeHtml(p.duration)}</p>
-          <p class="pricing-price">${formatMoney(p.price, site.currency)}</p>
+          <p class="pricing-price">${formatUsd(p.price)}</p>
+          <p class="pricing-kes">≈ ${formatMoney(p.price, site.currency)}</p>
           <p class="pricing-desc">${escapeHtml(p.description)}</p>
           <a class="btn ${featured ? "btn-primary" : "btn-outline"}" href="#booking" data-select-package="${p.id}">Book this →</a>
         </article>`;
@@ -230,7 +301,7 @@ function initPricing(): void {
   const sessionSelect = $("#bSession") as HTMLSelectElement | null;
   if (sessionSelect && config) {
     sessionSelect.innerHTML = config.pricing
-      .map((p) => `<option value="${p.id}">${escapeHtml(p.label)} — ${formatMoney(p.price, site.currency)}</option>`)
+      .map((p) => `<option value="${p.id}">${escapeHtml(p.label)} — ${formatUsd(p.price)} (≈ ${formatMoney(p.price, site.currency)})</option>`)
       .join("");
   }
 
@@ -322,7 +393,8 @@ function initBooking(): void {
       <div class="review-row"><span>Session</span><span>${escapeHtml(option.label)}</span></div>
       <div class="review-row"><span>Date</span><span>${escapeHtml(date)}</span></div>
       <div class="review-row"><span>Time</span><span>${escapeHtml(time)}</span></div>
-      <div class="review-row total"><span>Total</span><span>${formatMoney(option.price, config.site.currency)}</span></div>`;
+      <div class="review-row total"><span>Total</span><span>${formatUsd(option.price)}</span></div>
+      <div class="review-row"><span>Billed as</span><span>${formatMoney(option.price, config.site.currency)}</span></div>`;
   }
 
   function bookingPayload(): Record<string, unknown> {
@@ -355,6 +427,7 @@ function initBooking(): void {
     if (resultCode) resultCode.textContent = currentBooking?.code ?? "";
     if (resultHint) resultHint.textContent = hint;
     form!.scrollIntoView({ behavior: "smooth", block: "center" });
+    celebrate();
   }
 
   async function createBooking(): Promise<{ booking: Booking; whatsappLink: string }> {
@@ -558,6 +631,7 @@ function initFeedback(): void {
       }
       form.reset();
       setStars(0);
+      celebrate();
     } catch (err) {
       if (msg) {
         msg.textContent = (err as Error).message;
@@ -618,6 +692,7 @@ function initContact(): void {
         msg.classList.remove("err");
       }
       form.reset();
+      celebrate();
     } catch (err) {
       if (msg) {
         msg.textContent = (err as Error).message;

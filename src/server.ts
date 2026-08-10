@@ -5,6 +5,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { config } from "./config.js";
 import { initDb } from "./lib/db.js";
+import { getUsdToKesRate } from "./lib/rates.js";
 import { seedIfEmpty } from "./lib/seed.js";
 import { bookingsRouter } from "./routes/bookings.js";
 import { feedbackRouter } from "./routes/feedback.js";
@@ -68,7 +69,8 @@ const writeLimiter = (limit: number) =>
 app.use("/api", globalLimiter);
 
 // Public site configuration (safe values only — never secrets)
-app.get("/api/config", (_req, res) => {
+app.get("/api/config", async (_req, res) => {
+  const usdToKes = await getUsdToKesRate();
   res.json({
     ok: true,
     site: {
@@ -76,6 +78,7 @@ app.get("/api/config", (_req, res) => {
       currency: config.currency,
       whatsappNumber: config.whatsappNumber,
       paymentsEnabled: Boolean(config.paystack.publicKey && config.paystack.secretKey),
+      usdRate: usdToKes,
     },
     pricing: config.pricing,
   });
