@@ -819,6 +819,7 @@ section[id] {
 .t-card {
   position: relative;
   flex: 0 0 min(350px, 82vw);
+  min-width: 0;
   scroll-snap-align: start;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -842,7 +843,7 @@ section[id] {
   color: var(--primary-soft);
 }
 .t-stars { color: var(--star); letter-spacing: 2px; }
-.t-message { color: var(--ink); font-size: 0.99rem; margin: 0; font-style: italic; }
+.t-message { color: var(--ink); font-size: 0.99rem; margin: 0; font-style: italic; overflow-wrap: anywhere; }
 .t-meta {
   color: var(--muted);
   font-size: 0.86rem;
@@ -1056,7 +1057,9 @@ select {
   gap: 1rem;
   padding: 0.4rem 0;
   font-size: 0.95rem;
+  min-width: 0;
 }
+.review-row span:last-child { overflow-wrap: anywhere; text-align: right; }
 .review-row span:first-child { color: var(--muted); }
 .review-row.total {
   border-top: 1px solid var(--border);
