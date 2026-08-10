@@ -46,7 +46,7 @@ const bookingSchema = z.object({
   consent: z.boolean().refine((v) => v === true, "Please accept the consent notice"),
 });
 
-function bookingSummary(b: Booking): { sessionLabel: string; date: string; time: string; amount: string; whatsappNumber: string } {
+export function bookingSummary(b: Booking): { sessionLabel: string; date: string; time: string; amount: string; whatsappNumber: string } {
   return {
     sessionLabel: b.sessionLabel,
     date: b.preferredDate,
@@ -115,7 +115,7 @@ bookingsRouter.post(
       notes: data.notes,
       createdAt: new Date().toISOString(),
     };
-    insert("bookings", booking);
+    await insert("bookings", booking);
     res.status(201).json({ ok: true, booking: publicBooking(booking), whatsappLink: whatsappLinkFor(booking) });
   }),
 );
@@ -124,7 +124,7 @@ bookingsRouter.post(
 bookingsRouter.post(
   "/:id/pay-intent",
   asyncHandler(async (req, res) => {
-    const booking = findById<Booking>("bookings", req.params.id);
+    const booking = await findById<Booking>("bookings", req.params.id);
     if (!booking) {
       res.status(404).json({ ok: false, message: "Booking not found" });
       return;
@@ -148,7 +148,7 @@ bookingsRouter.post(
       metadata: { bookingId: booking.id, bookingCode: booking.code, session: booking.sessionLabel },
     });
 
-    update<Booking>("bookings", booking.id, { paystackReference: reference, status: "unpaid" });
+    await update<Booking>("bookings", booking.id, { paystackReference: reference, status: "unpaid" });
 
     res.status(201).json({
       ok: true,
@@ -169,7 +169,7 @@ bookingsRouter.post(
 bookingsRouter.post(
   "/:id/verify",
   asyncHandler(async (req, res) => {
-    const booking = findById<Booking>("bookings", req.params.id);
+    const booking = await findById<Booking>("bookings", req.params.id);
     if (!booking) {
       res.status(404).json({ ok: false, message: "Booking not found" });
       return;
@@ -186,35 +186,41 @@ bookingsRouter.post(
       return;
     }
 
-    const confirmed = update<Booking>("bookings", booking.id, {
-      status: "confirmed",
-      paidAt: new Date().toISOString(),
-      paystackReference: reference.data,
-    });
-    if (!confirmed) {
-      res.status(404).json({ ok: false, message: "Booking not found" });
-      return;
+    // Idempotent: if the Paystack webhook already confirmed this booking,
+    // just return it without re-sending emails.
+    if (booking.status !== "confirmed") {
+      const confirmed = await update<Booking>("bookings", booking.id, {
+        status: "confirmed",
+        paidAt: new Date().toISOString(),
+        paystackReference: reference.data,
+      });
+      if (!confirmed) {
+        res.status(404).json({ ok: false, message: "Booking not found" });
+        return;
+      }
+
+      const summary = bookingSummary(confirmed);
+      const toClient = bookingConfirmationEmail({
+        name: confirmed.fullName,
+        bookingCode: confirmed.code,
+        ...summary,
+      });
+      const toAdmin = newBookingNotificationEmail({
+        name: confirmed.fullName,
+        bookingCode: confirmed.code,
+        ...summary,
+        email: confirmed.email,
+        notes: confirmed.notes,
+        channel: `Paid online (Paystack) — ${confirmed.paystackReference}`,
+      });
+      await Promise.all([
+        config.adminEmail ? sendMail({ ...toClient, to: confirmed.email }) : Promise.resolve(false),
+        config.adminEmail ? sendMail({ ...toAdmin, to: config.adminEmail }) : Promise.resolve(false),
+      ]);
     }
 
-    const summary = bookingSummary(confirmed);
-    const toClient = bookingConfirmationEmail({
-      name: confirmed.fullName,
-      bookingCode: confirmed.code,
-      ...summary,
-    });
-    const toAdmin = newBookingNotificationEmail({
-      name: confirmed.fullName,
-      bookingCode: confirmed.code,
-      ...summary,
-      email: confirmed.email,
-      notes: confirmed.notes,
-    });
-    await Promise.all([
-      config.adminEmail ? sendMail({ ...toClient, to: confirmed.email }) : Promise.resolve(false),
-      config.adminEmail ? sendMail({ ...toAdmin, to: config.adminEmail }) : Promise.resolve(false),
-    ]);
-
-    res.json({ ok: true, booking: { ...publicBooking(confirmed), paidAt: confirmed.paidAt } });
+    const latest = (await findById<Booking>("bookings", req.params.id)) ?? booking;
+    res.json({ ok: true, booking: { ...publicBooking(latest), paidAt: latest.paidAt } });
   }),
 );
 
@@ -222,12 +228,28 @@ bookingsRouter.post(
 bookingsRouter.post(
   "/:id/contact",
   asyncHandler(async (req, res) => {
-    const booking = findById<Booking>("bookings", req.params.id);
+    const booking = await findById<Booking>("bookings", req.params.id);
     if (!booking) {
       res.status(404).json({ ok: false, message: "Booking not found" });
       return;
     }
-    const updated = update<Booking>("bookings", booking.id, { status: "contact" }) ?? booking;
+    const updated = (await update<Booking>("bookings", booking.id, { status: "contact" })) ?? booking;
+
+    // WhatsApp bookings get no Paystack callback, so notify the therapist
+    // directly — no booking should ever be silent.
+    if (config.adminEmail) {
+      const summary = bookingSummary(updated);
+      await sendMail(
+        newBookingNotificationEmail({
+          name: updated.fullName,
+          bookingCode: updated.code,
+          ...summary,
+          email: updated.email,
+          notes: updated.notes,
+          channel: "WhatsApp (pay/arrange in chat)",
+        }),
+      );
+    }
 
     res.json({ ok: true, booking: publicBooking(updated), whatsappLink: whatsappLinkFor(updated) });
   }),

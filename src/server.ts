@@ -4,10 +4,12 @@ import { fileURLToPath } from "node:url";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { config } from "./config.js";
+import { initDb } from "./lib/db.js";
 import { seedIfEmpty } from "./lib/seed.js";
 import { bookingsRouter } from "./routes/bookings.js";
 import { feedbackRouter } from "./routes/feedback.js";
 import { contactRouter } from "./routes/contact.js";
+import { webhookRouter } from "./routes/webhook.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.resolve(__dirname, "..", "public");
@@ -41,7 +43,11 @@ app.use(
   }),
 );
 
-app.use(express.json({ limit: "100kb" }));
+// Keep the raw request body available so the Paystack webhook can verify its
+// HMAC signature over the exact bytes Paystack sent.
+app.use(express.json({ limit: "100kb", verify: (req, _res, buf) => {
+  (req as Request & { rawBody?: Buffer }).rawBody = buf;
+} }));
 
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -79,9 +85,25 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true, uptime: process.uptime() });
 });
 
+// Same-origin hop for the WhatsApp popup: the client pre-opens this URL
+// synchronously (popup-blocker safe), then navigates here after the booking
+// is created. Browsers allow same-origin navigation of a script-opened
+// popup, whereas navigating it directly to wa.me cross-origin is blocked.
+app.get("/wa-redirect", (req, res) => {
+  const to = typeof req.query.to === "string" ? req.query.to : "";
+  if (/^https:\/\/wa\.me\//.test(to) || /^https:\/\/api\.whatsapp\.com\//.test(to)) {
+    res.redirect(to);
+    return;
+  }
+  res.redirect("/#booking");
+});
+
 app.use("/api/bookings", writeLimiter(15), bookingsRouter);
 app.use("/api/feedback", writeLimiter(6), feedbackRouter);
 app.use("/api/contact", writeLimiter(10), contactRouter);
+
+// Paystack webhook — no write limiter (webhooks are retried and must not 429).
+app.use("/api/paystack/webhook", webhookRouter);
 
 app.use(express.static(publicDir, { index: "index.html", maxAge: config.isProd ? "1h" : 0 }));
 
@@ -101,7 +123,8 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   res.status(status).json({ ok: false, message });
 });
 
-app.listen(config.port, () => {
-  seedIfEmpty();
+app.listen(config.port, async () => {
+  await initDb();
+  await seedIfEmpty();
   console.log(`[kizitomoraa] server running at ${config.publicUrl} (${config.nodeEnv})`);
 });

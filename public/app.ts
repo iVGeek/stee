@@ -457,12 +457,11 @@ function initBooking(): void {
     bookingBusy = true;
     setMsg("Saving your booking…", true);
     waBtn.disabled = true;
-    let popup: Window | null = null;
-    try { popup = window.open("", "_blank"); } catch { popup = null; }
+    const popup = window.open("/wa-redirect", "_blank");
     try {
       const { booking, whatsappLink } = await createBooking();
       if (whatsappLink && popup && !popup.closed) {
-        popup.location.href = whatsappLink;
+        popup.location.href = `/wa-redirect?to=${encodeURIComponent(whatsappLink)}`;
       } else if (whatsappLink) {
         window.open(whatsappLink, "_blank");
       }

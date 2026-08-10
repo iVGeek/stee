@@ -79,6 +79,7 @@ export interface BookingMailDetails {
   time: string;
   amount: string;
   whatsappNumber: string;
+  channel?: string;
 }
 
 export function bookingConfirmationEmail(d: BookingMailDetails): MailInput {
@@ -115,6 +116,7 @@ export function newBookingNotificationEmail(d: BookingMailDetails & { email: str
         ["Preferred date", d.date],
         ["Preferred time", d.time],
         ["Fee", d.amount],
+        ...(d.channel ? ([["Payment", d.channel]] as [string, string][]) : []),
         ...(d.notes ? ([["Notes", d.notes]] as [string, string][]) : []),
       ]),
     ),

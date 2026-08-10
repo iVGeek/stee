@@ -18,6 +18,7 @@ export const config = {
   nodeEnv: process.env.NODE_ENV ?? "development",
   isProd: (process.env.NODE_ENV ?? "development") === "production",
   publicUrl: (process.env.PUBLIC_URL ?? `http://localhost:${num(process.env.PORT, 3000)}`).replace(/\/$/, ""),
+  databaseUrl: process.env.DATABASE_URL ?? "",
   adminEmail: process.env.ADMIN_EMAIL ?? "",
   adminToken: process.env.ADMIN_TOKEN ?? "change-me-admin-token",
   whatsappNumber: process.env.WA_NUMBER ?? "",

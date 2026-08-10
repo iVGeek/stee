@@ -28,7 +28,7 @@ export const feedbackRouter = Router();
 feedbackRouter.get(
   "/",
   asyncHandler(async (_req, res) => {
-    const rows = readAll<Feedback>("feedback")
+    const rows = (await readAll<Feedback>("feedback"))
       .filter((f) => f.approved)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 24)
@@ -62,7 +62,7 @@ feedbackRouter.post(
       approved: true,
       createdAt: new Date().toISOString(),
     };
-    insert("feedback", row);
+    await insert("feedback", row);
 
     if (config.adminEmail) {
       await sendMail(
@@ -92,7 +92,7 @@ feedbackRouter.get(
   "/admin",
   asyncHandler(async (req, res) => {
     requireAdmin(req);
-    const rows = readAll<Feedback>("feedback").sort(
+    const rows = (await readAll<Feedback>("feedback")).sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
     res.json({ ok: true, feedback: rows });
@@ -104,7 +104,7 @@ feedbackRouter.post(
   "/admin/:id/approve",
   asyncHandler(async (req, res) => {
     requireAdmin(req);
-    const updated = update<Feedback>("feedback", req.params.id, { approved: true });
+    const updated = await update<Feedback>("feedback", req.params.id, { approved: true });
     if (!updated) throw new ApiError(404, "Feedback not found");
     res.json({ ok: true, feedback: updated });
   }),
@@ -115,7 +115,7 @@ feedbackRouter.delete(
   "/admin/:id",
   asyncHandler(async (req, res) => {
     requireAdmin(req);
-    if (!remove("feedback", req.params.id)) throw new ApiError(404, "Feedback not found");
+    if (!(await remove("feedback", req.params.id))) throw new ApiError(404, "Feedback not found");
     res.json({ ok: true });
   }),
 );

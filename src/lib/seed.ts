@@ -1,4 +1,4 @@
-import { readAll, writeAll } from "./store.js";
+import { readAll, insert } from "./store.js";
 import type { Feedback } from "../routes/feedback.js";
 
 const seedFeedback: Feedback[] = [
@@ -35,8 +35,10 @@ const seedFeedback: Feedback[] = [
 ];
 
 /** Seeds sample approved testimonials only when the feedback store is empty. */
-export function seedIfEmpty(): void {
-  if (readAll<Feedback>("feedback").length === 0) {
-    writeAll("feedback", seedFeedback);
+export async function seedIfEmpty(): Promise<void> {
+  if ((await readAll<Feedback>("feedback")).length === 0) {
+    for (const f of seedFeedback) {
+      await insert("feedback", f);
+    }
   }
 }
