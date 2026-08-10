@@ -136,6 +136,7 @@ async function loadConfig(): Promise<void> {
   setWa("#waHero", heroText);
   setWa("#waFloat", heroText);
   setWa("#waContact", heroText);
+  setWa("#waFooter", heroText);
 
   const email = $("a#contactEmail") as HTMLAnchorElement | null;
   if (email && config) {
