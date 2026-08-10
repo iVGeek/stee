@@ -44,7 +44,7 @@ feedbackRouter.get(
   }),
 );
 
-// Public: submit feedback (goes to moderation)
+// Public: submit feedback (published immediately)
 feedbackRouter.post(
   "/",
   asyncHandler(async (req, res) => {
@@ -59,7 +59,7 @@ feedbackRouter.post(
       rating: parsed.data.rating,
       sessionType: parsed.data.sessionType,
       message: parsed.data.message,
-      approved: false,
+      approved: true,
       createdAt: new Date().toISOString(),
     };
     insert("feedback", row);
@@ -76,7 +76,7 @@ feedbackRouter.post(
       );
     }
 
-    res.status(201).json({ ok: true, message: "Thank you! Your feedback will appear after review." });
+    res.status(201).json({ ok: true, message: "Thank you! Your review is now live." });
   }),
 );
 

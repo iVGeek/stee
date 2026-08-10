@@ -551,8 +551,9 @@ function initFeedback(): void {
     };
     try {
       await postJson("/api/feedback", payload);
+      appendFeedback(payload);
       if (msg) {
-        msg.textContent = "Thank you! Your feedback will appear after a quick review.";
+        msg.textContent = "Thank you! Your review is now live.";
         msg.classList.add("ok");
         msg.classList.remove("err");
       }
@@ -566,6 +567,22 @@ function initFeedback(): void {
       }
     }
   });
+
+  function appendFeedback(f: { name: string; rating: number; sessionType: string; message: string }): void {
+    if (!track) return;
+    const empty = track.querySelector(".t-card");
+    if (empty && track.children.length === 1 && (empty.textContent || "").includes("No reviews yet")) {
+      track.innerHTML = "";
+    }
+    const card = document.createElement("article");
+    card.className = "t-card";
+    card.innerHTML = `
+      <span class="t-stars" aria-label="${f.rating} out of 5 stars">${"★".repeat(f.rating)}${"☆".repeat(5 - f.rating)}</span>
+      <p class="t-message">“${escapeHtml(f.message)}”</p>
+      <p class="t-meta"><strong>${escapeHtml(f.name)}</strong> · ${escapeHtml(f.sessionType)}</p>`;
+    track.prepend(card);
+    track.scrollTo({ left: 0, behavior: "smooth" });
+  }
 
   const prev = $("#tPrev");
   const next = $("#tNext");
