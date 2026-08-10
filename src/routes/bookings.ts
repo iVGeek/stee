@@ -68,6 +68,20 @@ function publicBooking(b: Booking) {
   };
 }
 
+function whatsappLinkFor(b: Booking): string {
+  const num = config.whatsappNumber;
+  if (!num) return "";
+  const text = [
+    "Hello, I would like to book a counselling session.",
+    `Name: ${b.fullName}`,
+    `Session: ${b.sessionLabel}`,
+    `Preferred date: ${b.preferredDate}`,
+    `Preferred time: ${b.preferredTime}`,
+    `Booking ref: ${b.code}`,
+  ].join("\n");
+  return `https://wa.me/${num}?text=${encodeURIComponent(text)}`;
+}
+
 export const bookingsRouter = Router();
 
 // Create a booking (no payment yet)
@@ -102,7 +116,7 @@ bookingsRouter.post(
       createdAt: new Date().toISOString(),
     };
     insert("bookings", booking);
-    res.status(201).json({ ok: true, booking: publicBooking(booking) });
+    res.status(201).json({ ok: true, booking: publicBooking(booking), whatsappLink: whatsappLinkFor(booking) });
   }),
 );
 
@@ -215,16 +229,6 @@ bookingsRouter.post(
     }
     const updated = update<Booking>("bookings", booking.id, { status: "contact" }) ?? booking;
 
-    const text = [
-      "Hello, I would like to book a counselling session.",
-      `Name: ${updated.fullName}`,
-      `Session: ${updated.sessionLabel}`,
-      `Preferred date: ${updated.preferredDate}`,
-      `Preferred time: ${updated.preferredTime}`,
-      `Booking ref: ${updated.code}`,
-    ].join("%0A");
-    const waLink = config.whatsappNumber ? `https://wa.me/${config.whatsappNumber}?text=${text}` : "";
-
-    res.json({ ok: true, booking: publicBooking(updated), whatsappLink: waLink });
+    res.json({ ok: true, booking: publicBooking(updated), whatsappLink: whatsappLinkFor(updated) });
   }),
 );
