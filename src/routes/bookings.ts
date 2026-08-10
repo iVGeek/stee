@@ -68,20 +68,6 @@ function publicBooking(b: Booking) {
   };
 }
 
-function whatsappLinkFor(b: Booking): string {
-  const num = config.whatsappNumber;
-  if (!num) return "";
-  const text = [
-    "Hello, I would like to book a counselling session.",
-    `Name: ${b.fullName}`,
-    `Session: ${b.sessionLabel}`,
-    `Preferred date: ${b.preferredDate}`,
-    `Preferred time: ${b.preferredTime}`,
-    `Booking ref: ${b.code}`,
-  ].join("\n");
-  return `https://wa.me/${num}?text=${encodeURIComponent(text)}`;
-}
-
 export const bookingsRouter = Router();
 
 // Create a booking (no payment yet)
@@ -116,7 +102,7 @@ bookingsRouter.post(
       createdAt: new Date().toISOString(),
     };
     insert("bookings", booking);
-    res.status(201).json({ ok: true, booking: publicBooking(booking), whatsappLink: whatsappLinkFor(booking) });
+    res.status(201).json({ ok: true, booking: publicBooking(booking) });
   }),
 );
 
@@ -215,20 +201,5 @@ bookingsRouter.post(
     ]);
 
     res.json({ ok: true, booking: { ...publicBooking(confirmed), paidAt: confirmed.paidAt } });
-  }),
-);
-
-// Opt into paying/handling later via WhatsApp — returns a prefilled chat link
-bookingsRouter.post(
-  "/:id/contact",
-  asyncHandler(async (req, res) => {
-    const booking = findById<Booking>("bookings", req.params.id);
-    if (!booking) {
-      res.status(404).json({ ok: false, message: "Booking not found" });
-      return;
-    }
-    const updated = update<Booking>("bookings", booking.id, { status: "contact" }) ?? booking;
-
-    res.json({ ok: true, booking: publicBooking(updated), whatsappLink: whatsappLinkFor(updated) });
   }),
 );
