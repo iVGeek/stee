@@ -131,11 +131,11 @@ export function feedbackNotificationEmail(f: {
   feedbackId: string;
 }): MailInput {
   return {
-    to: f.name,
-    subject: `New client feedback (${f.rating}/5)`,
+    to: config.adminEmail,
+    subject: `New client feedback awaiting approval (${f.rating}/5)`,
     html: shell(
       "New client feedback",
-      `<p>A client left new feedback on the website. Review it in the moderation list.</p>
+      `<p>A client left feedback on the website. It will only appear publicly once you approve it via the moderation list.</p>
        ${kvTable([
          ["From", f.name],
          ["Rating", `${f.rating} / 5`],

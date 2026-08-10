@@ -24,12 +24,12 @@ const feedbackSchema = z.object({
 
 export const feedbackRouter = Router();
 
-// Public: approved testimonials only
+// Public: approved testimonials only (never placeholder/bot seeds)
 feedbackRouter.get(
   "/",
   asyncHandler(async (_req, res) => {
     const rows = (await readAll<Feedback>("feedback"))
-      .filter((f) => f.approved)
+      .filter((f) => f.approved && !f.id.startsWith("seed-"))
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 24)
       .map((f) => ({
@@ -44,7 +44,7 @@ feedbackRouter.get(
   }),
 );
 
-// Public: submit feedback (published immediately)
+// Public: submit feedback (kept pending until approved — only real reviews go live)
 feedbackRouter.post(
   "/",
   asyncHandler(async (req, res) => {
@@ -59,7 +59,7 @@ feedbackRouter.post(
       rating: parsed.data.rating,
       sessionType: parsed.data.sessionType,
       message: parsed.data.message,
-      approved: true,
+      approved: false,
       createdAt: new Date().toISOString(),
     };
     await insert("feedback", row);
@@ -76,7 +76,7 @@ feedbackRouter.post(
       );
     }
 
-    res.status(201).json({ ok: true, message: "Thank you! Your review is now live." });
+    res.status(201).json({ ok: true, message: "Thank you! Your review will appear once approved." });
   }),
 );
 
