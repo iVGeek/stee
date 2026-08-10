@@ -264,6 +264,7 @@ function initBooking(): void {
   const resultHint = $("#resultHint");
   const msg = $("#bookingMsg");
   const payBtn = $("#payPaystack") as HTMLButtonElement | null;
+  const waBtn = $("#payWhatsApp") as HTMLButtonElement | null;
 
   let stepIndex = 0;
 
@@ -356,10 +357,10 @@ function initBooking(): void {
     form!.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
-  async function createBooking(): Promise<Booking> {
-    const res = await postJson<{ ok: boolean; booking: Booking }>("/api/bookings", bookingPayload());
+  async function createBooking(): Promise<{ booking: Booking; whatsappLink: string }> {
+    const res = await postJson<{ ok: boolean; booking: Booking; whatsappLink: string }>("/api/bookings", bookingPayload());
     currentBooking = res.booking;
-    return res.booking;
+    return { booking: res.booking, whatsappLink: res.whatsappLink ?? "" };
   }
 
   payBtn?.addEventListener("click", async () => {
@@ -371,7 +372,7 @@ function initBooking(): void {
       return;
     }
     if (!config?.site.paymentsEnabled) {
-      setMsg("Online payments are temporarily unavailable. Please try again later.", false);
+      setMsg("Online payments are temporarily unavailable — please use the WhatsApp option.", false);
       return;
     }
 
@@ -379,7 +380,7 @@ function initBooking(): void {
     setMsg("Creating your booking…", true);
     payBtn.disabled = true;
     try {
-      const booking = await createBooking();
+      const { booking } = await createBooking();
       setMsg("Preparing secure payment…", true);
       const intent = await postJson<PayIntent>(`/api/bookings/${booking.id}/pay-intent`, {});
       await loadPaystack();
@@ -400,7 +401,7 @@ function initBooking(): void {
       script.onload = () => {
         if (window.PaystackPop) { resolve(); } else { reject(new Error("Payment provider failed to load.")); }
       };
-      script.onerror = () => reject(new Error("Payment provider failed to load. Please try again."));
+      script.onerror = () => reject(new Error("Payment provider failed to load. Please try again or use WhatsApp."));
       document.head.appendChild(script);
     });
   }
@@ -408,7 +409,7 @@ function initBooking(): void {
   function openPaystack(payment: PayIntent["payment"]): void {
     const pop = window.PaystackPop;
     if (!pop) {
-      setMsg("Payment provider failed to load. Please try again.", false);
+      setMsg("Payment provider failed to load. Please try again or use WhatsApp.", false);
       bookingBusy = false;
       payBtn!.disabled = false;
       return;
@@ -444,6 +445,42 @@ function initBooking(): void {
       },
     });
   }
+
+  waBtn?.addEventListener("click", async () => {
+    if (bookingBusy) return;
+    if (!stepValid(stepIndex)) return;
+    const consent = ($("#bConsent") as HTMLInputElement).checked;
+    if (!consent) {
+      setMsg("Please accept the consent notice to continue.", false);
+      return;
+    }
+    bookingBusy = true;
+    setMsg("Saving your booking…", true);
+    waBtn.disabled = true;
+    let popup: Window | null = null;
+    try { popup = window.open("", "_blank"); } catch { popup = null; }
+    try {
+      const { booking, whatsappLink } = await createBooking();
+      if (whatsappLink && popup && !popup.closed) {
+        popup.location.href = whatsappLink;
+      } else if (whatsappLink) {
+        window.open(whatsappLink, "_blank");
+      }
+      postJson(`/api/bookings/${booking.id}/contact`, {}).catch(() => {});
+      bookingBusy = false;
+      waBtn.disabled = false;
+      showSuccess(
+        "Almost there!",
+        "Your booking is saved. Complete it on WhatsApp so we can arrange your session.",
+        "If the WhatsApp window didn't open, message us directly with your booking reference.",
+      );
+    } catch (err) {
+      if (popup && !popup.closed) popup.close();
+      setMsg((err as Error).message, false);
+      bookingBusy = false;
+      waBtn.disabled = false;
+    }
+  });
 }
 
 /* --------------------------------------------------------------------------
