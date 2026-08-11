@@ -30,6 +30,26 @@
       <p id="panelMsg" class="msg" role="status"></p>
       <div id="reviewList" class="review-list"></div>
     </section>
+
+    <section id="slotsCard" class="card" hidden>
+      <div class="panel-head">
+        <h1>Calendar — lock slots</h1>
+        <p class="muted">Block days/times you can't work. Booked times are shown for reference.</p>
+      </div>
+      <form id="slotForm">
+        <input type="date" id="slotDate" required />
+        <select id="slotTime" required>
+          <option value="">Time…</option>
+          <option>Morning (9:00-12:00)</option>
+          <option>Afternoon (12:00-15:00)</option>
+          <option>Late afternoon (15:00-17:00)</option>
+        </select>
+        <input type="text" id="slotNote" placeholder="Note (optional)" maxlength="120" />
+        <button class="btn" type="submit">Block slot</button>
+      </form>
+      <p id="slotMsg" class="msg" role="status"></p>
+      <div id="slotList" class="slot-list"></div>
+    </section>
   </main>
 
   <script src="/admin.js"></script>

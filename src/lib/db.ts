@@ -27,5 +27,9 @@ export async function initDb(): Promise<void> {
       id   TEXT PRIMARY KEY,
       data JSONB NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS slots (
+      id   TEXT PRIMARY KEY,
+      data JSONB NOT NULL
+    );
   `);
 }

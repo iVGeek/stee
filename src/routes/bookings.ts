@@ -5,6 +5,8 @@ import { bookingCode, randomId, asyncHandler } from "../lib/http.js";
 import { insert, findById, update } from "../lib/store.js";
 import { initializeTransaction, verifyTransaction, isPaystackConfigured } from "../lib/paystack.js";
 import { sendMail, bookingConfirmationEmail, newBookingNotificationEmail } from "../lib/mailer.js";
+import { sendWhatsAppText, bookingNotificationWhatsApp } from "../lib/whatsapp.js";
+import { isSlotAvailable, timeSlots } from "../lib/availability.js";
 
 export interface Booking {
   id: string;
@@ -23,8 +25,6 @@ export interface Booking {
   paidAt?: string;
   createdAt: string;
 }
-
-const timeSlots = ["Morning (9:00-12:00)", "Afternoon (12:00-15:00)", "Late afternoon (15:00-17:00)"] as const;
 
 const bookingSchema = z.object({
   fullName: z.string().trim().min(2, "Please enter your full name").max(100),
@@ -68,23 +68,56 @@ function publicBooking(b: Booking) {
   };
 }
 
-function whatsappLinkFor(b: Booking): string {
-  const num = config.whatsappNumber;
-  if (!num) return "";
-  const text = [
-    "Hello, I would like to book a counselling session.",
-    `Name: ${b.fullName}`,
-    `Session: ${b.sessionLabel}`,
-    `Preferred date: ${b.preferredDate}`,
-    `Preferred time: ${b.preferredTime}`,
-    `Booking ref: ${b.code}`,
-  ].join("\n");
-  return `https://wa.me/${num}?text=${encodeURIComponent(text)}`;
+/**
+ * Marks a booking confirmed and notifies everyone:
+ * confirmation email to the client, notification email to Kizito,
+ * and a WhatsApp ping to Kizito's phone. Idempotent callers should
+ * only call this on the pending → confirmed transition.
+ */
+export async function confirmAndNotify(booking: Booking, reference: string, channel: string): Promise<void> {
+  // Race guard: if the webhook and the in-browser verify both fire, only the
+  // first confirmation should notify.
+  const current = (await findById<Booking>("bookings", booking.id)) ?? booking;
+  if (current.status === "confirmed") return;
+
+  const confirmed = await update<Booking>("bookings", booking.id, {
+    status: "confirmed",
+    paidAt: new Date().toISOString(),
+    paystackReference: reference,
+  });
+  if (!confirmed) return;
+
+  const summary = bookingSummary(confirmed);
+  const toClient = bookingConfirmationEmail({
+    name: confirmed.fullName,
+    bookingCode: confirmed.code,
+    ...summary,
+  });
+  const toAdmin = newBookingNotificationEmail({
+    name: confirmed.fullName,
+    bookingCode: confirmed.code,
+    ...summary,
+    email: confirmed.email,
+    notes: confirmed.notes,
+    channel,
+  });
+  await Promise.all([
+    config.adminEmail ? sendMail({ ...toClient, to: confirmed.email }) : Promise.resolve(false),
+    config.adminEmail ? sendMail({ ...toAdmin, to: config.adminEmail }) : Promise.resolve(false),
+    sendWhatsAppText(config.waToNumber, bookingNotificationWhatsApp({
+      name: confirmed.fullName,
+      phone: confirmed.phone,
+      sessionLabel: confirmed.sessionLabel,
+      date: confirmed.preferredDate,
+      time: confirmed.preferredTime,
+      bookingCode: confirmed.code,
+    })),
+  ]);
 }
 
 export const bookingsRouter = Router();
 
-// Create a booking (no payment yet)
+// Create a booking (no payment yet) — the chosen slot must still be free.
 bookingsRouter.post(
   "/",
   asyncHandler(async (req, res) => {
@@ -97,6 +130,13 @@ bookingsRouter.post(
     const option = getPriceOption(data.sessionType);
     if (!option) {
       res.status(400).json({ ok: false, message: "Please select a valid session type" });
+      return;
+    }
+    if (!(await isSlotAvailable(data.preferredDate, data.preferredTime))) {
+      res.status(409).json({
+        ok: false,
+        message: "Sorry, that day and time was just taken. Please pick another slot.",
+      });
       return;
     }
 
@@ -116,7 +156,7 @@ bookingsRouter.post(
       createdAt: new Date().toISOString(),
     };
     await insert("bookings", booking);
-    res.status(201).json({ ok: true, booking: publicBooking(booking), whatsappLink: whatsappLinkFor(booking) });
+    res.status(201).json({ ok: true, booking: publicBooking(booking) });
   }),
 );
 
@@ -187,70 +227,12 @@ bookingsRouter.post(
     }
 
     // Idempotent: if the Paystack webhook already confirmed this booking,
-    // just return it without re-sending emails.
+    // just return it without re-notifying anyone.
     if (booking.status !== "confirmed") {
-      const confirmed = await update<Booking>("bookings", booking.id, {
-        status: "confirmed",
-        paidAt: new Date().toISOString(),
-        paystackReference: reference.data,
-      });
-      if (!confirmed) {
-        res.status(404).json({ ok: false, message: "Booking not found" });
-        return;
-      }
-
-      const summary = bookingSummary(confirmed);
-      const toClient = bookingConfirmationEmail({
-        name: confirmed.fullName,
-        bookingCode: confirmed.code,
-        ...summary,
-      });
-      const toAdmin = newBookingNotificationEmail({
-        name: confirmed.fullName,
-        bookingCode: confirmed.code,
-        ...summary,
-        email: confirmed.email,
-        notes: confirmed.notes,
-        channel: `Paid online (Paystack) — ${confirmed.paystackReference}`,
-      });
-      await Promise.all([
-        config.adminEmail ? sendMail({ ...toClient, to: confirmed.email }) : Promise.resolve(false),
-        config.adminEmail ? sendMail({ ...toAdmin, to: config.adminEmail }) : Promise.resolve(false),
-      ]);
+      await confirmAndNotify(booking, reference.data, `Paid online (Paystack) — ${reference.data}`);
     }
 
     const latest = (await findById<Booking>("bookings", req.params.id)) ?? booking;
     res.json({ ok: true, booking: { ...publicBooking(latest), paidAt: latest.paidAt } });
-  }),
-);
-
-// Opt into paying/handling later via WhatsApp — returns a prefilled chat link
-bookingsRouter.post(
-  "/:id/contact",
-  asyncHandler(async (req, res) => {
-    const booking = await findById<Booking>("bookings", req.params.id);
-    if (!booking) {
-      res.status(404).json({ ok: false, message: "Booking not found" });
-      return;
-    }
-    const updated = (await update<Booking>("bookings", booking.id, { status: "contact" })) ?? booking;
-
-    // WhatsApp bookings get no Paystack callback, so notify the therapist
-    // directly — no booking should ever be silent.
-    if (config.adminEmail) {
-      const summary = bookingSummary(updated);
-      await sendMail(
-        newBookingNotificationEmail({
-          name: updated.fullName,
-          bookingCode: updated.code,
-          ...summary,
-          email: updated.email,
-          notes: updated.notes,
-          channel: "WhatsApp (pay/arrange in chat)",
-        }),
-      );
-    }
-
-    res.json({ ok: true, booking: publicBooking(updated), whatsappLink: whatsappLinkFor(updated) });
   }),
 );

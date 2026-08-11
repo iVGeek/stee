@@ -1041,6 +1041,73 @@ select {
 }
 .form-actions:only-child { justify-content: flex-end; }
 
+.slot-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding: 0.1rem 0;
+}
+.slot-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.05rem;
+  min-width: 62px;
+  padding: 0.55rem 0.7rem;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+.slot-chip:hover:not(:disabled) {
+  border-color: var(--primary);
+  background: var(--accent-soft);
+  transform: translateY(-2px);
+}
+.slot-chip.selected {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(19, 94, 75, 0.28);
+}
+.slot-chip.is-disabled,
+.slot-chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+.slot-chip-day { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.85; }
+.slot-chip-num { font-size: 1.15rem; font-weight: 700; line-height: 1.1; }
+.slot-chip-month { font-size: 0.72rem; opacity: 0.85; }
+.slot-chip-count {
+  margin-top: 0.15rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent-dark);
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+}
+.slot-chip.selected .slot-chip-count { background: rgba(255, 255, 255, 0.2); color: #fff; }
+.slot-chip.is-disabled .slot-chip-count { background: var(--error-soft); color: var(--error); }
+.slot-chip-sub { font-weight: 700; }
+.slot-chip-range { font-size: 0.72rem; font-weight: 500; opacity: 0.8; }
+.slot-hint {
+  margin: 0.1rem 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.payment-note { margin-top: 0.4rem; font-size: 0.85rem; color: var(--muted); }
+
+
 .review-summary {
   background: var(--surface-alt);
   border-radius: var(--radius-sm);
@@ -1090,7 +1157,6 @@ select {
   justify-content: center;
   gap: 0.9rem;
 }
-.pay-or { color: var(--muted); font-size: 0.9rem; }
 
 .form-note {
   min-height: 1.4em;

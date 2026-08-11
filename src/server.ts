@@ -6,11 +6,13 @@ import rateLimit from "express-rate-limit";
 import { config } from "./config.js";
 import { initDb } from "./lib/db.js";
 import { getUsdToKesRate } from "./lib/rates.js";
+import { listTakenSlots, timeSlots } from "./lib/availability.js";
 import { seedIfEmpty } from "./lib/seed.js";
 import { bookingsRouter } from "./routes/bookings.js";
 import { feedbackRouter } from "./routes/feedback.js";
 import { contactRouter } from "./routes/contact.js";
 import { webhookRouter } from "./routes/webhook.js";
+import { slotsRouter } from "./routes/slots.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.resolve(__dirname, "..", "public");
@@ -70,7 +72,7 @@ app.use("/api", globalLimiter);
 
 // Public site configuration (safe values only — never secrets)
 app.get("/api/config", async (_req, res) => {
-  const usdToKes = await getUsdToKesRate();
+  const [usdToKes, slots] = await Promise.all([getUsdToKesRate(), listTakenSlots()]);
   res.json({
     ok: true,
     site: {
@@ -79,8 +81,10 @@ app.get("/api/config", async (_req, res) => {
       whatsappNumber: config.whatsappNumber,
       paymentsEnabled: Boolean(config.paystack.publicKey && config.paystack.secretKey),
       usdRate: usdToKes,
+      timeSlots,
     },
     pricing: config.pricing,
+    slots,
   });
 });
 
@@ -88,22 +92,10 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true, uptime: process.uptime() });
 });
 
-// Same-origin hop for the WhatsApp popup: the client pre-opens this URL
-// synchronously (popup-blocker safe), then navigates here after the booking
-// is created. Browsers allow same-origin navigation of a script-opened
-// popup, whereas navigating it directly to wa.me cross-origin is blocked.
-app.get("/wa-redirect", (req, res) => {
-  const to = typeof req.query.to === "string" ? req.query.to : "";
-  if (/^https:\/\/wa\.me\//.test(to) || /^https:\/\/api\.whatsapp\.com\//.test(to)) {
-    res.redirect(to);
-    return;
-  }
-  res.redirect("/#booking");
-});
-
 app.use("/api/bookings", writeLimiter(15), bookingsRouter);
 app.use("/api/feedback", writeLimiter(6), feedbackRouter);
 app.use("/api/contact", writeLimiter(10), contactRouter);
+app.use("/api/slots", slotsRouter);
 
 // Paystack webhook — no write limiter (webhooks are retried and must not 429).
 app.use("/api/paystack/webhook", webhookRouter);

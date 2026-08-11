@@ -22,6 +22,12 @@ export const config = {
   adminEmail: process.env.ADMIN_EMAIL ?? "",
   adminToken: process.env.ADMIN_TOKEN ?? "change-me-admin-token",
   whatsappNumber: process.env.WA_NUMBER ?? "",
+  // WhatsApp Cloud API (Meta) — used to ping the therapist when a client pays.
+  waToken: process.env.WA_TOKEN ?? "",
+  waPhoneId: process.env.WA_PHONE_ID ?? "",
+  waToNumber: process.env.WA_TO_NUMBER ?? process.env.WA_NUMBER ?? "",
+  // How long an unpaid booking reserves its slot before it's released.
+  bookingHoldMinutes: num(process.env.BOOKING_HOLD_MINUTES, 120),
   currency: "KES",
   paystack: {
     publicKey: process.env.PAYSTACK_PUBLIC_KEY ?? "",

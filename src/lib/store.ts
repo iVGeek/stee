@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { usingDb, query } from "./db.js";
 
-export type TableName = "bookings" | "feedback";
+export type TableName = "bookings" | "feedback" | "slots";
 
 const dataDir = path.resolve(process.cwd(), "data");
 

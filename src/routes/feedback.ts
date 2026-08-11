@@ -1,7 +1,7 @@
-import { Router, type Request } from "express";
+import { Router } from "express";
 import { z } from "zod";
 import { config } from "../config.js";
-import { randomId, asyncHandler, ApiError } from "../lib/http.js";
+import { randomId, asyncHandler, ApiError, requireAdmin } from "../lib/http.js";
 import { insert, readAll, update, remove, clearAll } from "../lib/store.js";
 import { sendMail, feedbackNotificationEmail } from "../lib/mailer.js";
 
@@ -79,13 +79,6 @@ feedbackRouter.post(
     res.status(201).json({ ok: true, message: "Thank you! Your review will appear once approved." });
   }),
 );
-
-function requireAdmin(req: Request): void {
-  const auth = req.get("authorization") ?? "";
-  if (auth !== `Bearer ${config.adminToken}`) {
-    throw new ApiError(401, "Unauthorized");
-  }
-}
 
 // Admin: moderate feedback (list with pending status)
 feedbackRouter.get(

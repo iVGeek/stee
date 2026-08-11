@@ -11,6 +11,12 @@ type PriceOption = {
   description: string;
 };
 
+type TakenSlot = {
+  date: string;
+  time: string;
+  kind: "booked" | "blocked";
+};
+
 type SiteConfig = {
   ok: boolean;
   site: {
@@ -19,8 +25,10 @@ type SiteConfig = {
     whatsappNumber: string;
     paymentsEnabled: boolean;
     usdRate: number;
+    timeSlots: string[];
   };
   pricing: PriceOption[];
+  slots: TakenSlot[];
 };
 
 type Booking = {
@@ -85,11 +93,19 @@ function escapeHtml(value: string): string {
   return div.innerHTML;
 }
 
-function todayIso(): string {
+const DEFAULT_TIME_SLOTS = ["Morning (9:00-12:00)", "Afternoon (12:00-15:00)", "Late afternoon (15:00-17:00)"];
+
+function isoDay(offset: number): { iso: string; d: Date } {
   const d = new Date();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${m}-${day}`;
+  d.setDate(d.getDate() + offset);
+  d.setHours(0, 0, 0, 0);
+  const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return { iso, d };
+}
+
+function splitTimeSlot(label: string): { name: string; range: string } {
+  const m = label.match(/^(.+?)\s*\((.+?)\)\s*$/);
+  return m ? { name: m[1], range: m[2] } : { name: label, range: "" };
 }
 
 function formatMoney(amount: number, currency: string): string {
@@ -304,9 +320,6 @@ function initPricing(): void {
       .map((p) => `<option value="${p.id}">${escapeHtml(p.label)} — ${formatUsd(p.price)} (≈ ${formatMoney(p.price, site.currency)})</option>`)
       .join("");
   }
-
-  const dateInput = $("#bDate") as HTMLInputElement | null;
-  if (dateInput) dateInput.min = todayIso();
 }
 
 function selectSessionType(id: string): void {
@@ -335,9 +348,90 @@ function initBooking(): void {
   const resultHint = $("#resultHint");
   const msg = $("#bookingMsg");
   const payBtn = $("#payPaystack") as HTMLButtonElement | null;
-  const waBtn = $("#payWhatsApp") as HTMLButtonElement | null;
+  const dayPicker = $("#bDayPicker") as HTMLElement | null;
+  const timePicker = $("#bTimePicker") as HTMLElement | null;
+  const dayHint = $("#bDayHint");
+  const timeHint = $("#bTimeHint");
+  const bDate = $("#bDate") as HTMLInputElement | null;
+  const bTime = $("#bTime") as HTMLInputElement | null;
+  const timeSlots = config?.site.timeSlots?.length ? config.site.timeSlots : DEFAULT_TIME_SLOTS;
+  const unavailable = new Set<string>((config?.slots ?? []).map((s) => `${s.date}|${s.time}`));
 
+  let selectedDate = "";
   let stepIndex = 0;
+
+  /* ---- Day / time availability picker ---- */
+
+  function availableTimes(dateIso: string): string[] {
+    return timeSlots.filter((t) => !unavailable.has(`${dateIso}|${t}`));
+  }
+
+  function dayChipLabel(offset: number): { iso: string; weekday: string; dayNum: string; month: string } {
+    const { iso, d } = isoDay(offset);
+    const weekday = d.toLocaleDateString(undefined, { weekday: "short" });
+    const dayNum = String(d.getDate());
+    const month = d.toLocaleDateString(undefined, { month: "short" });
+    return { iso, weekday, dayNum, month };
+  }
+
+  function buildDayPicker(): void {
+    if (!dayPicker) return;
+    dayPicker.innerHTML = Array.from({ length: 21 }, (_, i) => {
+      const { iso, weekday, dayNum, month } = dayChipLabel(i);
+      const open = availableTimes(iso).length;
+      const cls = open === 0 ? "slot-chip is-disabled" : "slot-chip";
+      const label = open === 0 ? `${weekday} ${dayNum} — fully booked` : `${weekday} ${dayNum} ${month}, ${open} time${open === 1 ? "" : "s"} open`;
+      return `
+        <button type="button" class="${cls}" data-day="${iso}" role="option" aria-label="${label}" ${open === 0 ? "disabled" : ""}>
+          <span class="slot-chip-day">${weekday}</span>
+          <span class="slot-chip-num">${dayNum}</span>
+          <span class="slot-chip-month">${month}</span>
+          <span class="slot-chip-count">${open === 0 ? "Full" : open}</span>
+        </button>`;
+    }).join("");
+
+    dayPicker.querySelectorAll<HTMLButtonElement>("[data-day]").forEach((chip) => {
+      chip.addEventListener("click", () => selectDay(chip.dataset.day ?? ""));
+    });
+  }
+
+  function buildTimePicker(dateIso: string): void {
+    if (!timePicker) return;
+    selectedDate = dateIso;
+    timePicker.innerHTML = availableTimes(dateIso)
+      .map((t) => {
+        const { name, range } = splitTimeSlot(t);
+        return `
+          <button type="button" class="slot-chip" data-time="${escapeHtml(t)}" role="option">
+            <span class="slot-chip-sub">${escapeHtml(name)}</span>
+            <span class="slot-chip-range">${escapeHtml(range)}</span>
+          </button>`;
+      })
+      .join("");
+
+    timePicker.querySelectorAll<HTMLButtonElement>("[data-time]").forEach((chip) => {
+      chip.addEventListener("click", () => selectTime(chip.dataset.time ?? ""));
+    });
+  }
+
+  function selectDay(iso: string): void {
+    dayPicker?.querySelectorAll<HTMLButtonElement>("[data-day]").forEach((c) => c.classList.toggle("selected", c.dataset.day === iso));
+    buildTimePicker(iso);
+    if (bDate) bDate.value = "";
+    if (bTime) bTime.value = "";
+    if (dayHint) dayHint.textContent = "Now pick an available time.";
+    if (timeHint) timeHint.textContent = timeSlots.length ? "Pick an available time below." : "No times left on this day.";
+  }
+
+  function selectTime(time: string): void {
+    timePicker?.querySelectorAll<HTMLButtonElement>("[data-time]").forEach((c) => c.classList.toggle("selected", c.dataset.time === time));
+    if (bDate) bDate.value = selectedDate;
+    if (bTime) bTime.value = time;
+    const slot = unavailable.has(`${selectedDate}|${time}`) ? " — just taken, please pick another." : "";
+    if (timeHint) timeHint.textContent = `Selected: ${splitTimeSlot(time).name}.${slot}`;
+  }
+
+  buildDayPicker();
 
   function showStep(index: number): void {
     stepIndex = index;
@@ -359,6 +453,12 @@ function initBooking(): void {
       if (f.id === "bConsent") continue;
       if (!f.checkValidity()) {
         f.reportValidity();
+        return false;
+      }
+    }
+    if (index === 1) {
+      if (!bDate?.value || !bTime?.value) {
+        setMsg("Please pick a day and an available time.", false);
         return false;
       }
     }
@@ -386,8 +486,8 @@ function initBooking(): void {
     const option = config.pricing.find((p) => p.id === sessionSelect?.value);
     if (!option) return;
     const name = ($("#bName") as HTMLInputElement)?.value.trim() || "—";
-    const date = ($("#bDate") as HTMLInputElement)?.value || "—";
-    const time = ($("#bTime") as HTMLSelectElement)?.value || "—";
+    const date = bDate?.value || "—";
+    const time = bTime?.value || "—";
     box.innerHTML = `
       <div class="review-row"><span>Name</span><span>${escapeHtml(name)}</span></div>
       <div class="review-row"><span>Session</span><span>${escapeHtml(option.label)}</span></div>
@@ -403,8 +503,8 @@ function initBooking(): void {
       email: ($("#bEmail") as HTMLInputElement).value.trim(),
       phone: ($("#bPhone") as HTMLInputElement).value.trim(),
       sessionType: ($("#bSession") as HTMLSelectElement).value,
-      preferredDate: ($("#bDate") as HTMLInputElement).value,
-      preferredTime: ($("#bTime") as HTMLSelectElement).value,
+      preferredDate: bDate?.value ?? "",
+      preferredTime: bTime?.value ?? "",
       notes: ($("#bNotes") as HTMLTextAreaElement).value.trim(),
       consent: true,
     };
@@ -430,10 +530,10 @@ function initBooking(): void {
     celebrate();
   }
 
-  async function createBooking(): Promise<{ booking: Booking; whatsappLink: string }> {
-    const res = await postJson<{ ok: boolean; booking: Booking; whatsappLink: string }>("/api/bookings", bookingPayload());
+  async function createBooking(): Promise<{ booking: Booking }> {
+    const res = await postJson<{ ok: boolean; booking: Booking }>("/api/bookings", bookingPayload());
     currentBooking = res.booking;
-    return { booking: res.booking, whatsappLink: res.whatsappLink ?? "" };
+    return { booking: res.booking };
   }
 
   payBtn?.addEventListener("click", async () => {
@@ -445,7 +545,7 @@ function initBooking(): void {
       return;
     }
     if (!config?.site.paymentsEnabled) {
-      setMsg("Online payments are temporarily unavailable — please use the WhatsApp option.", false);
+      setMsg("Online payments are temporarily unavailable. Please try again shortly.", false);
       return;
     }
 
@@ -474,7 +574,7 @@ function initBooking(): void {
       script.onload = () => {
         if (window.PaystackPop) { resolve(); } else { reject(new Error("Payment provider failed to load.")); }
       };
-      script.onerror = () => reject(new Error("Payment provider failed to load. Please try again or use WhatsApp."));
+      script.onerror = () => reject(new Error("Payment provider failed to load. Please try again."));
       document.head.appendChild(script);
     });
   }
@@ -482,7 +582,7 @@ function initBooking(): void {
   function openPaystack(payment: PayIntent["payment"]): void {
     const pop = window.PaystackPop;
     if (!pop) {
-      setMsg("Payment provider failed to load. Please try again or use WhatsApp.", false);
+      setMsg("Payment provider failed to load. Please try again.", false);
       bookingBusy = false;
       payBtn!.disabled = false;
       return;
@@ -502,8 +602,8 @@ function initBooking(): void {
           payBtn!.disabled = false;
           showSuccess(
             "Payment received — you're booked!",
-            "Your session is confirmed. A confirmation email is on its way to your inbox.",
-            "You'll receive your session link or call details ahead of the appointment.",
+            "Your session is confirmed. A confirmation email is on its way to your inbox, and Kizito has been notified.",
+            "You'll receive your private session link or call details ahead of the appointment.",
           );
         } catch (err) {
           setMsg((err as Error).message, false);
@@ -518,41 +618,6 @@ function initBooking(): void {
       },
     });
   }
-
-  waBtn?.addEventListener("click", async () => {
-    if (bookingBusy) return;
-    if (!stepValid(stepIndex)) return;
-    const consent = ($("#bConsent") as HTMLInputElement).checked;
-    if (!consent) {
-      setMsg("Please accept the consent notice to continue.", false);
-      return;
-    }
-    bookingBusy = true;
-    setMsg("Saving your booking…", true);
-    waBtn.disabled = true;
-    const popup = window.open("/wa-redirect", "_blank");
-    try {
-      const { booking, whatsappLink } = await createBooking();
-      if (whatsappLink && popup && !popup.closed) {
-        popup.location.href = `/wa-redirect?to=${encodeURIComponent(whatsappLink)}`;
-      } else if (whatsappLink) {
-        window.open(whatsappLink, "_blank");
-      }
-      postJson(`/api/bookings/${booking.id}/contact`, {}).catch(() => {});
-      bookingBusy = false;
-      waBtn.disabled = false;
-      showSuccess(
-        "Almost there!",
-        "Your booking is saved. Complete it on WhatsApp so we can arrange your session.",
-        "If the WhatsApp window didn't open, message us directly with your booking reference.",
-      );
-    } catch (err) {
-      if (popup && !popup.closed) popup.close();
-      setMsg((err as Error).message, false);
-      bookingBusy = false;
-      waBtn.disabled = false;
-    }
-  });
 }
 
 /* --------------------------------------------------------------------------
@@ -695,12 +760,12 @@ async function init(): Promise<void> {
 
   initNav();
   initReveal();
-  initFeedback();
-  initContact();
-  initBooking();
 
   await loadConfig();
   initPricing();
+  initBooking();
+  initFeedback();
+  initContact();
 }
 
 void init();

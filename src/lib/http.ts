@@ -1,10 +1,19 @@
 import type { NextFunction, Request, Response } from "express";
+import { config } from "../config.js";
 
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
     super(message);
     this.status = status;
+  }
+}
+
+/** Throws 401 unless the request carries the admin bearer token. */
+export function requireAdmin(req: Request): void {
+  const auth = req.get("authorization") ?? "";
+  if (auth !== `Bearer ${config.adminToken}`) {
+    throw new ApiError(401, "Unauthorized");
   }
 }
 

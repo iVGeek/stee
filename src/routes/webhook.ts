@@ -2,9 +2,8 @@ import crypto from "node:crypto";
 import { Router, type Request } from "express";
 import { config } from "../config.js";
 import { asyncHandler } from "../lib/http.js";
-import { readAll, update } from "../lib/store.js";
-import { sendMail, bookingConfirmationEmail, newBookingNotificationEmail } from "../lib/mailer.js";
-import { bookingSummary } from "./bookings.js";
+import { readAll } from "../lib/store.js";
+import { confirmAndNotify } from "./bookings.js";
 import type { Booking } from "./bookings.js";
 
 export const webhookRouter = Router();
@@ -45,34 +44,7 @@ webhookRouter.post(
       return;
     }
 
-    const confirmed = await update<Booking>("bookings", booking.id, {
-      status: "confirmed",
-      paidAt: new Date().toISOString(),
-      paystackReference: reference,
-    });
-    if (!confirmed) {
-      res.json({ ok: true });
-      return;
-    }
-
-    const summary = bookingSummary(confirmed);
-    const toClient = bookingConfirmationEmail({
-      name: confirmed.fullName,
-      bookingCode: confirmed.code,
-      ...summary,
-    });
-    const toAdmin = newBookingNotificationEmail({
-      name: confirmed.fullName,
-      bookingCode: confirmed.code,
-      ...summary,
-      email: confirmed.email,
-      notes: confirmed.notes,
-      channel: `Paid online (Paystack webhook) — ${reference}`,
-    });
-    await Promise.all([
-      config.adminEmail ? sendMail({ ...toClient, to: confirmed.email }) : Promise.resolve(false),
-      config.adminEmail ? sendMail({ ...toAdmin, to: config.adminEmail }) : Promise.resolve(false),
-    ]);
+    await confirmAndNotify(booking, reference, `Paid online (Paystack webhook) — ${reference}`);
 
     res.json({ ok: true });
   }),

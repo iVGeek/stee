@@ -4,6 +4,7 @@
 
   const loginView = document.getElementById("loginView");
   const panelView = document.getElementById("panelView");
+  const slotsCard = document.getElementById("slotsCard");
   const loginForm = document.getElementById("loginForm");
   const tokenInput = document.getElementById("tokenInput");
   const loginMsg = document.getElementById("loginMsg");
@@ -11,12 +12,19 @@
   const reviewList = document.getElementById("reviewList");
   const refreshBtn = document.getElementById("refreshBtn");
   const logoutBtn = document.getElementById("logoutBtn");
+  const slotForm = document.getElementById("slotForm");
+  const slotDate = document.getElementById("slotDate");
+  const slotTime = document.getElementById("slotTime");
+  const slotNote = document.getElementById("slotNote");
+  const slotMsg = document.getElementById("slotMsg");
+  const slotList = document.getElementById("slotList");
 
   let token = "";
 
   function show(view) {
     loginView.hidden = view !== "login";
     panelView.hidden = view !== "panel";
+    if (slotsCard) slotsCard.hidden = view !== "panel";
   }
 
   function setMsg(el, text, kind) {
@@ -114,6 +122,102 @@
     return div.innerHTML;
   }
 
+  function fmtDay(iso) {
+    try {
+      return new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+    } catch {
+      return iso;
+    }
+  }
+
+  async function loadSlots() {
+    setMsg(slotMsg, "Loading calendar…");
+    try {
+      const data = await api("/api/slots/admin");
+      setMsg(slotMsg, "");
+      const blocked = data.blocked || [];
+      const booked = data.booked || [];
+      const rows = [];
+
+      for (const s of blocked) {
+        const row = document.createElement("div");
+        row.className = "slot-row";
+        row.innerHTML = `
+          <div>
+            <span class="slot-date">${escapeHtml(fmtDay(s.date))}</span>
+            <span class="slot-time">${escapeHtml(s.time)}</span>
+            ${s.note ? `<span class="slot-note">· ${escapeHtml(s.note)}</span>` : ""}
+          </div>
+          <div class="slot-actions">
+            <span class="badge badge-pending">Blocked</span>
+            <button class="btn btn-danger" data-unblock="${escapeHtml(s.id)}" type="button">Unblock</button>
+          </div>`;
+        rows.push(row);
+      }
+
+      for (const s of booked) {
+        const row = document.createElement("div");
+        row.className = "slot-row";
+        row.innerHTML = `
+          <div>
+            <span class="slot-date">${escapeHtml(fmtDay(s.date))}</span>
+            <span class="slot-time">${escapeHtml(s.time)}</span>
+          </div>
+          <div class="slot-actions">
+            <span class="badge badge-approved">Booked</span>
+          </div>`;
+        rows.push(row);
+      }
+
+      slotList.innerHTML = "";
+      if (!rows.length) {
+        slotList.innerHTML = '<p class="empty">No booked or blocked slots.</p>';
+      } else {
+        rows.forEach((r) => slotList.appendChild(r));
+      }
+
+      slotList.querySelectorAll("[data-unblock]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          btn.disabled = true;
+          try {
+            await api(`/api/slots/admin/${encodeURIComponent(btn.dataset.unblock)}`, { method: "DELETE" });
+            setMsg(slotMsg, "Slot unlocked.", "ok");
+          } catch (err) {
+            setMsg(slotMsg, err.message, "err");
+          }
+          await loadSlots();
+        });
+      });
+    } catch (err) {
+      if (err.message !== "unauthorized") setMsg(slotMsg, err.message, "err");
+    }
+  }
+
+  slotForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const date = slotDate.value;
+    const time = slotTime.value;
+    const note = slotNote.value.trim();
+    if (!date || !time) {
+      setMsg(slotMsg, "Please choose a date and time.", "err");
+      return;
+    }
+    (async () => {
+      try {
+        await api("/api/slots/admin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ date, time, note }),
+        });
+        slotForm.reset();
+        setMsg(slotMsg, "Slot blocked. It won't appear as bookable.", "ok");
+      } catch (err) {
+        setMsg(slotMsg, err.message, "err");
+      }
+      await loadSlots();
+    })();
+  });
+
   loginForm.addEventListener("submit", (e) => {
     e.preventDefault();
     token = tokenInput.value.trim();
@@ -124,10 +228,13 @@
     sessionStorage.setItem(TOKEN_KEY, token);
     setMsg(loginMsg, "Signing in…");
     show("panel");
-    loadReviews().catch(() => {});
+    Promise.all([loadReviews(), loadSlots()]).catch(() => {});
   });
 
-  refreshBtn.addEventListener("click", loadReviews);
+  refreshBtn.addEventListener("click", () => {
+    loadReviews();
+    loadSlots();
+  });
 
   logoutBtn.addEventListener("click", () => {
     token = "";
@@ -139,7 +246,7 @@
   token = sessionStorage.getItem(TOKEN_KEY) || "";
   if (token) {
     show("panel");
-    loadReviews().catch(() => {});
+    Promise.all([loadReviews(), loadSlots()]).catch(() => {});
   } else {
     show("login");
   }
