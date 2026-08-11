@@ -74,7 +74,9 @@ declare global {
         metadata?: Record<string, unknown>;
         callback: (response: { reference: string }) => void;
         onClose: () => void;
-      }) => void;
+      }) => {
+        openIframe: () => void;
+      };
     };
   }
 }
@@ -664,7 +666,7 @@ function initBooking(): void {
       payBtn!.disabled = false;
       return;
     }
-    pop.setup({
+    const handler = pop.setup({
       key: payment.publicKey,
       email: payment.email,
       amount: payment.amount * 100,
@@ -698,6 +700,10 @@ function initBooking(): void {
         payBtn!.disabled = false;
       },
     });
+
+    // setup() returns the checkout handler; openIframe() is what actually
+    // displays the Paystack popup.
+    handler.openIframe();
   }
 }
 
