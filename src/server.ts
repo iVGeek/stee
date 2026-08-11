@@ -110,6 +110,11 @@ app.use("/api/paystack/webhook", webhookRouter);
 
 app.use(express.static(publicDir, { index: "index.html", maxAge: config.isProd ? "1h" : 0 }));
 
+// Admin moderation page (served explicitly so /admin isn't swallowed by the SPA fallback)
+app.get("/admin", (_req, res) => {
+  res.sendFile(path.join(publicDir, "admin.html"));
+});
+
 // SPA-ish fallback: serve index.html for unknown non-API GET routes
 app.get(/^(?!\/api\/).*/, (_req, res) => {
   res.sendFile(path.join(publicDir, "index.html"));
