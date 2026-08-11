@@ -1,6 +1,6 @@
-User-agent: *
+﻿User-agent: *
 Allow: /
 Disallow: /admin
 Disallow: /api/
 
-Sitemap: https://kizitomoraa-counselling.onrender.com/sitemap.xml
+Sitemap: https://stee-pzeq.onrender.com/sitemap.xml

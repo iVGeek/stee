@@ -76,7 +76,7 @@ feedbackRouter.post(
       );
     }
 
-    res.status(201).json({ ok: true, message: "Thank you! Your review will appear once approved." });
+    res.status(201).json({ ok: true, message: "Thank you for your feedback!" });
   }),
 );
 

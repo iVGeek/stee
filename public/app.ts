@@ -772,7 +772,7 @@ function initFeedback(): void {
     try {
       await postJson("/api/feedback", payload);
       if (msg) {
-        msg.textContent = "Thank you! Your review will appear once approved.";
+        msg.textContent = "Thank you for your feedback!";
         msg.classList.add("ok");
         msg.classList.remove("err");
       }
