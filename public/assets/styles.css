@@ -1519,4 +1519,26 @@ select {
   .pricing-card { padding: 1.4rem 1.35rem; }
   .feedback-form,
   .contact-form { padding: 1.4rem; }
+
+  .footer-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 1.3rem 1.1rem;
+    margin-bottom: 1.2rem;
+  }
+  .footer-grid > div:first-child,
+  .footer-grid > div:last-child { grid-column: 1 / -1; }
+  .footer-brand { font-size: 1.05rem; }
+  .footer-brand p:last-child { margin-bottom: 0; }
+  .footer-blurb { font-size: 0.82rem; max-width: none; margin-bottom: 0.4rem; }
+  .footer-head { font-size: 0.85rem; margin-bottom: 0.55rem; }
+  .site-footer ul { gap: 0.3rem; }
+  .footer-contact li { font-size: 0.84rem; }
+  .footer-bottom {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.3rem;
+    padding-top: 0.95rem;
+    font-size: 0.76rem;
+  }
 }
