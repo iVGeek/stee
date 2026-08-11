@@ -299,10 +299,8 @@ function initPricing(): void {
   const site = config.site;
   grid.innerHTML = config.pricing
     .map((p) => {
-      const featured = p.id === "individual-physical";
       return `
-        <article class="pricing-card ${featured ? "featured" : ""}">
-          ${featured ? '<span class="pricing-badge">Best value</span>' : ""}
+        <article class="pricing-card">
           <h3>${escapeHtml(p.label)}</h3>
           <p class="pricing-duration">${escapeHtml(p.duration)}</p>
           <p class="pricing-price">${formatUsd(p.price)}</p>
