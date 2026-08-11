@@ -35,6 +35,14 @@ services:
         sync: false
       - key: WA_NUMBER
         sync: false
+      - key: WA_TOKEN
+        sync: false
+      - key: WA_PHONE_ID
+        sync: false
+      - key: WA_TO_NUMBER
+        sync: false
+      - key: MEETING_BASE_URL
+        sync: false
       - key: ADMIN_TOKEN
         generateValue: true
 
