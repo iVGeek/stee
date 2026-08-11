@@ -311,7 +311,7 @@ section[id] {
 .hero {
   position: relative;
   overflow: hidden;
-  padding: clamp(4.5rem, 9vw, 7.5rem) 0 clamp(4rem, 8vw, 6.5rem);
+  padding: clamp(3.5rem, 7vw, 5.5rem) 0 clamp(3.25rem, 6vw, 5rem);
 }
 .hero-bg {
   position: absolute;
@@ -410,7 +410,7 @@ section[id] {
   z-index: 1;
   display: grid;
   grid-template-columns: 1.12fr 0.88fr;
-  gap: 3.5rem;
+  gap: 2.75rem;
   align-items: center;
 }
 
@@ -520,13 +520,13 @@ section[id] {
    Sections
    ========================================================================== */
 
-.section { padding: clamp(4rem, 8vw, 6.5rem) 0; }
+.section { padding: clamp(3.25rem, 6vw, 5rem) 0; }
 .section-tint { background: var(--surface-alt); }
 
 .section-head {
   text-align: center;
   max-width: 640px;
-  margin: 0 auto clamp(2.4rem, 5vw, 3.6rem);
+  margin: 0 auto clamp(1.8rem, 3.5vw, 2.6rem);
 }
 .section-head .eyebrow {
   justify-content: center;
@@ -673,7 +673,7 @@ section[id] {
 .about-grid {
   display: grid;
   grid-template-columns: 0.92fr 1.08fr;
-  gap: clamp(2.5rem, 6vw, 4.5rem);
+  gap: clamp(2rem, 4vw, 3rem);
   align-items: center;
 }
 
@@ -1482,11 +1482,12 @@ select {
   .nav-links .nav-cta { margin-top: 0.6rem; }
   .nav-links .nav-cta a { text-align: center; }
 
-  .hero-inner { grid-template-columns: 1fr; gap: 3rem; }
-  .hero-photo { justify-self: start; }
+  .hero-inner { grid-template-columns: 1fr; gap: 2.25rem; }
+  .hero-photo { justify-self: start; max-width: 320px; }
+  .section-head { margin-bottom: 2.25rem; }
 
   .about-grid,
-  .contact-grid { grid-template-columns: 1fr; gap: 2.8rem; }
+  .contact-grid { grid-template-columns: 1fr; gap: 2.4rem; }
 
   .crisis-list { grid-template-columns: 1fr; }
 
@@ -1494,6 +1495,9 @@ select {
 }
 
 @media (max-width: 560px) {
+  .section { padding: 2.5rem 0; }
+  .hero-inner { gap: 1.75rem; }
+  .hero-photo { max-width: 280px; }
   .services-grid,
   .pricing-grid,
   .steps,
@@ -1502,7 +1506,10 @@ select {
   .payment-methods .btn { width: 100%; }
   .footer-grid { grid-template-columns: 1fr; gap: 1.8rem; }
   .hero-actions .btn { width: 100%; }
-  .booking-card { padding: 1.4rem; }
+  .booking-card { padding: 1.3rem; }
+  .service-card,
+  .step,
+  .pricing-card { padding: 1.4rem 1.35rem; }
   .feedback-form,
-  .contact-form { padding: 1.6rem; }
+  .contact-form { padding: 1.4rem; }
 }
