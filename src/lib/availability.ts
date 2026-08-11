@@ -3,11 +3,34 @@ import { readAll, update } from "./store.js";
 import type { Booking } from "../routes/bookings.js";
 import type { BlockedSlot } from "../routes/slots.js";
 
-export const timeSlots = [
-  "Morning (9:00-12:00)",
-  "Afternoon (12:00-15:00)",
-  "Late afternoon (15:00-17:00)",
-] as const;
+/**
+ * Weekly schedule: weekday (0 = Sunday … 6 = Saturday) → bookable times.
+ * Sessions run roughly hourly with breaks, so a single booking only locks
+ * its own slot instead of a whole morning/afternoon block.
+ */
+export const SCHEDULE: Record<number, readonly string[]> = {
+  0: [], // Sunday — closed
+  1: ["9:00 AM", "10:00 AM", "11:00 AM", "2:00 PM", "3:00 PM", "4:00 PM"], // Monday
+  2: ["9:00 AM", "10:00 AM", "11:00 AM", "2:00 PM", "3:00 PM", "4:00 PM"], // Tuesday
+  3: ["9:00 AM", "10:00 AM", "11:00 AM", "2:00 PM", "3:00 PM", "4:00 PM"], // Wednesday
+  4: ["9:00 AM", "10:00 AM", "11:00 AM", "2:00 PM", "3:00 PM", "4:00 PM"], // Thursday
+  5: ["9:00 AM", "10:00 AM", "11:00 AM", "2:00 PM", "3:00 PM", "4:00 PM"], // Friday
+  6: ["9:00 AM", "10:00 AM", "11:00 AM"], // Saturday
+};
+
+/** Bookable times for a given YYYY-MM-DD date. */
+export function timeSlotsFor(dateIso: string): readonly string[] {
+  const d = new Date(`${dateIso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return [];
+  return SCHEDULE[d.getDay()] ?? [];
+}
+
+/** Serialisable schedule map (weekday number as string key) for /api/config. */
+export function schedulePayload(): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (let wd = 0; wd <= 6; wd++) out[String(wd)] = [...SCHEDULE[wd]];
+  return out;
+}
 
 export interface TakenSlot {
   date: string;
@@ -48,4 +71,10 @@ export async function listTakenSlots(): Promise<TakenSlot[]> {
 export async function isSlotAvailable(date: string, time: string): Promise<boolean> {
   const taken = await listTakenSlots();
   return !taken.some((s) => s.date === date && s.time === time);
+}
+
+/** A slot is bookable only if the time exists in the weekly schedule AND is still free. */
+export async function isValidSlot(date: string, time: string): Promise<boolean> {
+  if (!timeSlotsFor(date).includes(time)) return false;
+  return isSlotAvailable(date, time);
 }

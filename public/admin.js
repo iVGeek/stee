@@ -130,6 +130,27 @@
     }
   }
 
+  async function populateTimeOptions() {
+    try {
+      const res = await fetch("/api/config");
+      const data = await res.json();
+      const schedule = data && data.site && data.site.schedule ? data.site.schedule : {};
+      const times = [];
+      const seen = new Set();
+      for (let wd = 0; wd <= 6; wd++) {
+        for (const t of schedule[String(wd)] || []) {
+          if (!seen.has(t)) {
+            seen.add(t);
+            times.push(t);
+          }
+        }
+      }
+      slotTime.innerHTML = '<option value="">Time…</option>' + times.map((t) => `<option>${escapeHtml(t)}</option>`).join("");
+    } catch {
+      /* keep the empty select */
+    }
+  }
+
   async function loadSlots() {
     setMsg(slotMsg, "Loading calendar…");
     try {
@@ -228,12 +249,14 @@
     sessionStorage.setItem(TOKEN_KEY, token);
     setMsg(loginMsg, "Signing in…");
     show("panel");
+    populateTimeOptions();
     Promise.all([loadReviews(), loadSlots()]).catch(() => {});
   });
 
   refreshBtn.addEventListener("click", () => {
     loadReviews();
     loadSlots();
+    populateTimeOptions();
   });
 
   logoutBtn.addEventListener("click", () => {
@@ -246,6 +269,7 @@
   token = sessionStorage.getItem(TOKEN_KEY) || "";
   if (token) {
     show("panel");
+    populateTimeOptions();
     Promise.all([loadReviews(), loadSlots()]).catch(() => {});
   } else {
     show("login");

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { randomId, asyncHandler, ApiError, requireAdmin } from "../lib/http.js";
 import { insert, readAll, remove } from "../lib/store.js";
-import { listTakenSlots, isSlotAvailable, timeSlots } from "../lib/availability.js";
+import { listTakenSlots, isSlotAvailable, timeSlotsFor } from "../lib/availability.js";
 
 export interface BlockedSlot {
   id: string;
@@ -20,7 +20,7 @@ const blockSchema = z.object({
       const t = new Date(`${d}T00:00:00`);
       return !Number.isNaN(t.getTime());
     }, "Please choose a valid date"),
-  time: z.enum(timeSlots),
+  time: z.string().trim().min(1, "Please choose a time"),
   note: z.string().trim().max(120).optional().default(""),
 });
 
@@ -59,6 +59,11 @@ slotsRouter.post(
       return;
     }
     const { date, time, note } = parsed.data;
+
+    if (!timeSlotsFor(date).includes(time)) {
+      res.status(400).json({ ok: false, message: "That time isn't in the weekly schedule for this day." });
+      return;
+    }
 
     const existing = (await readAll<BlockedSlot>("slots")).find((s) => s.date === date && s.time === time);
     if (existing) {

@@ -6,7 +6,7 @@ import rateLimit from "express-rate-limit";
 import { config } from "./config.js";
 import { initDb } from "./lib/db.js";
 import { getUsdToKesRate } from "./lib/rates.js";
-import { listTakenSlots, timeSlots } from "./lib/availability.js";
+import { listTakenSlots, schedulePayload } from "./lib/availability.js";
 import { seedIfEmpty } from "./lib/seed.js";
 import { bookingsRouter } from "./routes/bookings.js";
 import { feedbackRouter } from "./routes/feedback.js";
@@ -81,7 +81,7 @@ app.get("/api/config", async (_req, res) => {
       whatsappNumber: config.whatsappNumber,
       paymentsEnabled: Boolean(config.paystack.publicKey && config.paystack.secretKey),
       usdRate: usdToKes,
-      timeSlots,
+      schedule: schedulePayload(),
     },
     pricing: config.pricing,
     slots,

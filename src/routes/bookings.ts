@@ -6,7 +6,7 @@ import { insert, findById, update } from "../lib/store.js";
 import { initializeTransaction, verifyTransaction, isPaystackConfigured } from "../lib/paystack.js";
 import { sendMail, bookingConfirmationEmail, newBookingNotificationEmail } from "../lib/mailer.js";
 import { sendWhatsAppText, bookingNotificationWhatsApp } from "../lib/whatsapp.js";
-import { isSlotAvailable, timeSlots } from "../lib/availability.js";
+import { isValidSlot } from "../lib/availability.js";
 
 export interface Booking {
   id: string;
@@ -41,7 +41,7 @@ const bookingSchema = z.object({
       today.setHours(0, 0, 0, 0);
       return t.getTime() >= today.getTime();
     }, "Please choose a future date"),
-  preferredTime: z.enum(timeSlots),
+  preferredTime: z.string().trim().min(1, "Please choose a time"),
   notes: z.string().trim().max(2000, "Notes are too long").optional().default(""),
   consent: z.boolean().refine((v) => v === true, "Please accept the consent notice"),
 });
@@ -132,7 +132,7 @@ bookingsRouter.post(
       res.status(400).json({ ok: false, message: "Please select a valid session type" });
       return;
     }
-    if (!(await isSlotAvailable(data.preferredDate, data.preferredTime))) {
+    if (!(await isValidSlot(data.preferredDate, data.preferredTime))) {
       res.status(409).json({
         ok: false,
         message: "Sorry, that day and time was just taken. Please pick another slot.",

@@ -25,7 +25,7 @@ type SiteConfig = {
     whatsappNumber: string;
     paymentsEnabled: boolean;
     usdRate: number;
-    timeSlots: string[];
+    schedule: Record<string, string[]>;
   };
   pricing: PriceOption[];
   slots: TakenSlot[];
@@ -93,7 +93,15 @@ function escapeHtml(value: string): string {
   return div.innerHTML;
 }
 
-const DEFAULT_TIME_SLOTS = ["Morning (9:00-12:00)", "Afternoon (12:00-15:00)", "Late afternoon (15:00-17:00)"];
+const DEFAULT_SCHEDULE: Record<string, string[]> = {
+  "0": [],
+  "1": ["9:00 AM", "10:00 AM", "11:00 AM", "2:00 PM", "3:00 PM", "4:00 PM"],
+  "2": ["9:00 AM", "10:00 AM", "11:00 AM", "2:00 PM", "3:00 PM", "4:00 PM"],
+  "3": ["9:00 AM", "10:00 AM", "11:00 AM", "2:00 PM", "3:00 PM", "4:00 PM"],
+  "4": ["9:00 AM", "10:00 AM", "11:00 AM", "2:00 PM", "3:00 PM", "4:00 PM"],
+  "5": ["9:00 AM", "10:00 AM", "11:00 AM", "2:00 PM", "3:00 PM", "4:00 PM"],
+  "6": ["9:00 AM", "10:00 AM", "11:00 AM"],
+};
 
 function isoDay(offset: number): { iso: string; d: Date } {
   const d = new Date();
@@ -101,11 +109,6 @@ function isoDay(offset: number): { iso: string; d: Date } {
   d.setHours(0, 0, 0, 0);
   const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   return { iso, d };
-}
-
-function splitTimeSlot(label: string): { name: string; range: string } {
-  const m = label.match(/^(.+?)\s*\((.+?)\)\s*$/);
-  return m ? { name: m[1], range: m[2] } : { name: label, range: "" };
 }
 
 function formatMoney(amount: number, currency: string): string {
@@ -354,16 +357,22 @@ function initBooking(): void {
   const timeHint = $("#bTimeHint");
   const bDate = $("#bDate") as HTMLInputElement | null;
   const bTime = $("#bTime") as HTMLInputElement | null;
-  const timeSlots = config?.site.timeSlots?.length ? config.site.timeSlots : DEFAULT_TIME_SLOTS;
+  const schedule = config?.site.schedule && Object.keys(config.site.schedule).length ? config.site.schedule : DEFAULT_SCHEDULE;
   const unavailable = new Set<string>((config?.slots ?? []).map((s) => `${s.date}|${s.time}`));
 
   let selectedDate = "";
+  let selectedTime = "";
   let stepIndex = 0;
 
   /* ---- Day / time availability picker ---- */
 
+  function timesFor(dateIso: string): string[] {
+    const wd = String(new Date(`${dateIso}T00:00:00`).getDay());
+    return schedule[wd] ?? [];
+  }
+
   function availableTimes(dateIso: string): string[] {
-    return timeSlots.filter((t) => !unavailable.has(`${dateIso}|${t}`));
+    return timesFor(dateIso).filter((t) => !unavailable.has(`${dateIso}|${t}`));
   }
 
   function dayChipLabel(offset: number): { iso: string; weekday: string; dayNum: string; month: string } {
@@ -378,15 +387,23 @@ function initBooking(): void {
     if (!dayPicker) return;
     dayPicker.innerHTML = Array.from({ length: 21 }, (_, i) => {
       const { iso, weekday, dayNum, month } = dayChipLabel(i);
+      const total = timesFor(iso).length;
       const open = availableTimes(iso).length;
-      const cls = open === 0 ? "slot-chip is-disabled" : "slot-chip";
-      const label = open === 0 ? `${weekday} ${dayNum} — fully booked` : `${weekday} ${dayNum} ${month}, ${open} time${open === 1 ? "" : "s"} open`;
+      const closed = total === 0;
+      const full = total > 0 && open === 0;
+      const disabled = closed || full;
+      const count = closed ? "Closed" : full ? "Full" : open;
+      const label = closed
+        ? `${weekday} ${dayNum} — closed`
+        : full
+          ? `${weekday} ${dayNum} — fully booked`
+          : `${weekday} ${dayNum} ${month}, ${open} time${open === 1 ? "" : "s"} open`;
       return `
-        <button type="button" class="${cls}" data-day="${iso}" role="option" aria-label="${label}" ${open === 0 ? "disabled" : ""}>
+        <button type="button" class="slot-chip ${disabled ? "is-disabled" : ""}" data-day="${iso}" role="option" aria-label="${label}" ${disabled ? "disabled" : ""}>
           <span class="slot-chip-day">${weekday}</span>
           <span class="slot-chip-num">${dayNum}</span>
           <span class="slot-chip-month">${month}</span>
-          <span class="slot-chip-count">${open === 0 ? "Full" : open}</span>
+          <span class="slot-chip-count">${count}</span>
         </button>`;
     }).join("");
 
@@ -399,14 +416,10 @@ function initBooking(): void {
     if (!timePicker) return;
     selectedDate = dateIso;
     timePicker.innerHTML = availableTimes(dateIso)
-      .map((t) => {
-        const { name, range } = splitTimeSlot(t);
-        return `
-          <button type="button" class="slot-chip" data-time="${escapeHtml(t)}" role="option">
-            <span class="slot-chip-sub">${escapeHtml(name)}</span>
-            <span class="slot-chip-range">${escapeHtml(range)}</span>
-          </button>`;
-      })
+      .map((t) => `
+        <button type="button" class="slot-chip${t === selectedTime ? " selected" : ""}" data-time="${escapeHtml(t)}" role="option">
+          <span class="slot-chip-sub">${escapeHtml(t)}</span>
+        </button>`)
       .join("");
 
     timePicker.querySelectorAll<HTMLButtonElement>("[data-time]").forEach((chip) => {
@@ -414,21 +427,51 @@ function initBooking(): void {
     });
   }
 
+  /** Re-pulls live availability so a slot taken by someone else greys out at selection, not at payment. */
+  async function refreshAvailability(): Promise<void> {
+    const prevDate = selectedDate;
+    const prevTime = selectedTime;
+    try {
+      const res = await fetch("/api/slots");
+      const data = (await res.json()) as { ok: boolean; slots: TakenSlot[] };
+      unavailable.clear();
+      (data.slots ?? []).forEach((s) => unavailable.add(`${s.date}|${s.time}`));
+    } catch {
+      // Keep last known availability if the refresh fails.
+    }
+    const lost = prevTime !== "" && selectedTime === prevTime && unavailable.has(`${prevDate}|${prevTime}`);
+    if (lost) {
+      selectedTime = "";
+      if (bDate) bDate.value = "";
+      if (bTime) bTime.value = "";
+      if (dayHint) dayHint.textContent = `Sorry, ${prevDate} ${prevTime} was just taken — please pick another slot.`;
+    }
+    buildDayPicker();
+    if (selectedDate) buildTimePicker(selectedDate);
+    if (timeHint) {
+      timeHint.textContent = lost || selectedTime ? "" : "Pick an available time below.";
+    }
+  }
+
   function selectDay(iso: string): void {
     dayPicker?.querySelectorAll<HTMLButtonElement>("[data-day]").forEach((c) => c.classList.toggle("selected", c.dataset.day === iso));
-    buildTimePicker(iso);
+    selectedTime = "";
     if (bDate) bDate.value = "";
     if (bTime) bTime.value = "";
     if (dayHint) dayHint.textContent = "Now pick an available time.";
-    if (timeHint) timeHint.textContent = timeSlots.length ? "Pick an available time below." : "No times left on this day.";
+    if (timeHint) timeHint.textContent = "Loading the latest availability…";
+    buildTimePicker(iso);
+    void refreshAvailability();
   }
 
   function selectTime(time: string): void {
+    selectedTime = time;
     timePicker?.querySelectorAll<HTMLButtonElement>("[data-time]").forEach((c) => c.classList.toggle("selected", c.dataset.time === time));
     if (bDate) bDate.value = selectedDate;
     if (bTime) bTime.value = time;
-    const slot = unavailable.has(`${selectedDate}|${time}`) ? " — just taken, please pick another." : "";
-    if (timeHint) timeHint.textContent = `Selected: ${splitTimeSlot(time).name}.${slot}`;
+    if (dayHint) dayHint.textContent = "";
+    if (timeHint) timeHint.textContent = "";
+    void refreshAvailability();
   }
 
   buildDayPicker();
@@ -444,6 +487,25 @@ function initBooking(): void {
     form!.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  function isValidPhone(value: string): boolean {
+    const cleaned = value.replace(/[^+\d]/g, "");
+    return /^\+?\d+$/.test(cleaned) && cleaned.length >= 7 && cleaned.length <= 15;
+  }
+
+  const phoneInput = $("#bPhone") as HTMLInputElement | null;
+  function setPhoneValidity(): void {
+    if (!phoneInput) return;
+    const valid = !phoneInput.value.trim() || isValidPhone(phoneInput.value);
+    phoneInput.setCustomValidity(valid ? "" : "Please enter a valid phone number");
+  }
+  phoneInput?.addEventListener("input", setPhoneValidity);
+  phoneInput?.addEventListener("blur", () => {
+    setPhoneValidity();
+    if (phoneInput!.value.trim() && !isValidPhone(phoneInput!.value)) {
+      phoneInput!.reportValidity();
+    }
+  });
+
   function stepValid(index: number): boolean {
     const fieldset = steps[index];
     const fields = Array.from(fieldset.querySelectorAll<HTMLInputElement>("input, select, textarea")).filter(
@@ -451,6 +513,7 @@ function initBooking(): void {
     );
     for (const f of fields) {
       if (f.id === "bConsent") continue;
+      if (f.id === "bPhone") setPhoneValidity();
       if (!f.checkValidity()) {
         f.reportValidity();
         return false;
@@ -565,16 +628,32 @@ function initBooking(): void {
     }
   });
 
-  function loadPaystack(): Promise<void> {
+  // Paystack's CDN can be flaky on slow connections; retry loading the inline
+  // script (with a timeout) before giving up on the payment popup.
+  function loadPaystack(attempt = 0): Promise<void> {
     return new Promise((resolve, reject) => {
       if (window.PaystackPop) { resolve(); return; }
+      let settled = false;
+      const fail = () => {
+        if (settled) return;
+        settled = true;
+        if (attempt < 3) {
+          void loadPaystack(attempt + 1).then(resolve, reject);
+        } else {
+          reject(new Error("Payment provider failed to load. Please check your connection and try again."));
+        }
+      };
+      const ok = () => {
+        if (settled) return;
+        if (window.PaystackPop) { settled = true; resolve(); }
+        else fail();
+      };
+      const timer = setTimeout(fail, 12000);
       const script = document.createElement("script");
       script.src = "https://js.paystack.co/v1/inline.js";
       script.async = true;
-      script.onload = () => {
-        if (window.PaystackPop) { resolve(); } else { reject(new Error("Payment provider failed to load.")); }
-      };
-      script.onerror = () => reject(new Error("Payment provider failed to load. Please try again."));
+      script.onload = () => { clearTimeout(timer); ok(); };
+      script.onerror = () => { clearTimeout(timer); fail(); };
       document.head.appendChild(script);
     });
   }
@@ -594,22 +673,26 @@ function initBooking(): void {
       currency: payment.currency,
       ref: payment.reference,
       metadata: { bookingId: currentBooking?.id },
-      callback: async (response) => {
-        setMsg("Verifying payment…", true);
-        try {
-          await postJson(`/api/bookings/${currentBooking?.id}/verify`, { reference: response.reference });
-          bookingBusy = false;
-          payBtn!.disabled = false;
-          showSuccess(
-            "Payment received — you're booked!",
-            "Your session is confirmed. A confirmation email is on its way to your inbox, and Kizito has been notified.",
-            "You'll receive your private session link or call details ahead of the appointment.",
-          );
-        } catch (err) {
-          setMsg((err as Error).message, false);
-          bookingBusy = false;
-          payBtn!.disabled = false;
-        }
+      // Note: Paystack's v1 inline script rejects async functions for callback,
+      // so wrap the async verification in a sync handler.
+      callback: (response) => {
+        void (async () => {
+          setMsg("Verifying payment…", true);
+          try {
+            await postJson(`/api/bookings/${currentBooking?.id}/verify`, { reference: response.reference });
+            bookingBusy = false;
+            payBtn!.disabled = false;
+            showSuccess(
+              "Payment received — you're booked!",
+              "Your session is confirmed. A confirmation email is on its way to your inbox, and Kizito has been notified.",
+              "You'll receive your private session link or call details ahead of the appointment.",
+            );
+          } catch (err) {
+            setMsg((err as Error).message, false);
+            bookingBusy = false;
+            payBtn!.disabled = false;
+          }
+        })();
       },
       onClose: () => {
         setMsg("Payment window closed. You can retry whenever you're ready.", false);
