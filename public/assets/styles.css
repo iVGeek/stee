@@ -496,38 +496,6 @@ section[id] {
   border-radius: 22px;
   pointer-events: none;
 }
-.hero-quote-card {
-  position: absolute;
-  left: -28px;
-  bottom: 22px;
-  width: min(270px, 72%);
-  background: rgba(255, 255, 255, 0.96);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 1.05rem 1.2rem;
-  box-shadow: var(--shadow-md);
-}
-.hero-quote-card::before {
-  content: "“";
-  position: absolute;
-  top: -26px;
-  right: 18px;
-  font-family: var(--font-head);
-  font-size: 3.4rem;
-  line-height: 1;
-  color: var(--accent);
-  opacity: 0.5;
-}
-.hero-quote-text {
-  font-family: var(--font-head);
-  font-size: 1rem;
-  line-height: 1.45;
-  margin: 0.35rem 0 0.5rem;
-}
-.hero-quote-meta {
-  font-size: 0.8rem;
-  color: var(--muted);
-}
 .stars { color: var(--star); letter-spacing: 2px; font-size: 0.95rem; }
 
 /* ==========================================================================
@@ -1430,7 +1398,6 @@ select {
 
   .hero-inner { grid-template-columns: 1fr; gap: 3rem; }
   .hero-photo { justify-self: start; }
-  .hero-quote-card { left: 12px; }
 
   .about-grid,
   .contact-grid { grid-template-columns: 1fr; gap: 2.8rem; }
