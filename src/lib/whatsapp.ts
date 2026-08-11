@@ -56,6 +56,7 @@ export function bookingInvoiceWhatsApp(d: {
   amount: string;
   bookingCode: string;
   reference: string;
+  meetingLink?: string;
 }): string {
   return [
     `INVOICE — Kizito Moraa Counselling`,
@@ -66,6 +67,7 @@ export function bookingInvoiceWhatsApp(d: {
     `Date: ${d.date} at ${d.time}`,
     `Session fee: ${d.amount}`,
     `Payment ref: ${d.reference}`,
+    ...(d.meetingLink ? [``, `Your online session link:`, d.meetingLink] : []),
     ``,
     `Thank you for booking. Reply here if you have any questions.`,
   ].join("\n");
@@ -79,6 +81,7 @@ export function bookingNotificationWhatsApp(d: {
   date: string;
   time: string;
   bookingCode: string;
+  meetingLink?: string;
 }): string {
   return [
     "New paid booking on your website",
@@ -87,5 +90,6 @@ export function bookingNotificationWhatsApp(d: {
     `Date: ${d.date}`,
     `Time: ${d.time}`,
     `Ref: ${d.bookingCode}`,
+    ...(d.meetingLink ? [``, `Join this room at session time:`, d.meetingLink] : []),
   ].join("\n");
 }

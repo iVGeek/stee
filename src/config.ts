@@ -11,6 +11,7 @@ export interface PriceOption {
   duration: string;
   price: number; // in main currency units (e.g. KES)
   description: string;
+  online?: boolean; // whether the session happens over a video link
 }
 
 export const config = {
@@ -18,6 +19,10 @@ export const config = {
   nodeEnv: process.env.NODE_ENV ?? "development",
   isProd: (process.env.NODE_ENV ?? "development") === "production",
   publicUrl: (process.env.PUBLIC_URL ?? `http://localhost:${num(process.env.PORT, 3000)}`).replace(/\/$/, ""),
+  // Base URL used to build a unique per-booking meeting link for online sessions.
+  // Defaults to Jitsi Meet (free, no account needed). Point this at your own
+  // video provider if you use one (e.g. https://meet.example.com).
+  meetingBaseUrl: (process.env.MEETING_BASE_URL ?? "https://meet.jit.si").replace(/\/$/, ""),
   databaseUrl: process.env.DATABASE_URL ?? "",
   adminEmail: process.env.ADMIN_EMAIL ?? "",
   adminToken: process.env.ADMIN_TOKEN ?? "change-me-admin-token",
@@ -56,6 +61,7 @@ export const config = {
       duration: "45 min – 1 hour",
       price: 2000,
       description: "Secure video or phone sessions for clients who prefer online therapy.",
+      online: true,
     },
     {
       id: "couples",
@@ -76,6 +82,12 @@ export const config = {
 
 export function getPriceOption(id: string): PriceOption | undefined {
   return config.pricing.find((p) => p.id === id);
+}
+
+/** Unique video-meeting URL for a booking's online session (e.g. Jitsi room named by booking code). */
+export function meetingLinkFor(bookingCode: string): string {
+  const room = `Kizito-${bookingCode}`;
+  return `${config.meetingBaseUrl}/${room}`;
 }
 
 export function formatMoney(amount: number): string {

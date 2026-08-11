@@ -80,6 +80,19 @@ export interface BookingMailDetails {
   amount: string;
   whatsappNumber: string;
   channel?: string;
+  meetingLink?: string;
+}
+
+/** Prominent "join your online session" block, shown only for online sessions. */
+function joinBlock(d: BookingMailDetails): string {
+  if (!d.meetingLink) return "";
+  return `
+  <div style="margin:18px 0;padding:18px;border:2px solid #4cb572;border-radius:12px;background:#dff2e6">
+    <p style="margin:0 0 6px;color:#0e4a3a;font-weight:700;font-size:14px">Your online session link</p>
+    <p style="margin:0 0 12px;color:#0e241c;font-size:14px">This is your private room. Join a few minutes early — you'll be in a secure waiting room until your session starts.</p>
+    <p style="margin:0"><a href="${d.meetingLink}" style="display:inline-block;background:#135e4b;color:#f6faf5;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:8px;font-size:14px">Join your session →</a></p>
+    <p style="margin:10px 0 0;color:#44605a;font-size:12px;word-break:break-all">${d.meetingLink}</p>
+  </div>`;
 }
 
 export function bookingConfirmationEmail(d: BookingMailDetails): MailInput {
@@ -97,7 +110,8 @@ export function bookingConfirmationEmail(d: BookingMailDetails): MailInput {
          ["Preferred time", d.time],
          ["Session fee", d.amount],
        ])}
-       <p>You will receive your private session link / call details ahead of the session. For changes or rescheduling, reply on WhatsApp: <b>${d.whatsappNumber}</b></p>
+       ${joinBlock(d)}
+       <p>For changes or rescheduling, reply on WhatsApp: <b>${d.whatsappNumber}</b></p>
        <p>We look forward to seeing you.</p>`,
     ),
   };
@@ -164,6 +178,7 @@ export function bookingInvoiceEmail(d: BookingMailDetails & { email: string; pho
           </tr>
         </table>
         <p style="margin:18px 0 0;color:#44605a;font-size:13px">Payment reference: <b>${d.reference}</b> · Received on ${d.paidAt}</p>
+        ${joinBlock(d)}
         <p style="margin:8px 0 0;color:#44605a;font-size:13px">Questions about this invoice? WhatsApp <b>${d.whatsappNumber}</b>.</p>
       </div>
       <div style="background:#0e4a3a;padding:14px 28px;color:#a1d8b5;font-size:12px;text-align:center">

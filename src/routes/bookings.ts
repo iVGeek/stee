@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { config, formatMoney, getPriceOption } from "../config.js";
+import { config, formatMoney, getPriceOption, meetingLinkFor } from "../config.js";
 import { bookingCode, randomId, asyncHandler } from "../lib/http.js";
 import { insert, findById, update } from "../lib/store.js";
 import { initializeTransaction, verifyTransaction, isPaystackConfigured } from "../lib/paystack.js";
@@ -88,10 +88,12 @@ export async function confirmAndNotify(booking: Booking, reference: string, chan
   if (!confirmed) return;
 
   const summary = bookingSummary(confirmed);
+  const meetingLink = getPriceOption(confirmed.sessionType)?.online ? meetingLinkFor(confirmed.code) : undefined;
   const toClient = bookingConfirmationEmail({
     name: confirmed.fullName,
     bookingCode: confirmed.code,
     ...summary,
+    meetingLink,
   });
   const toAdmin = newBookingNotificationEmail({
     name: confirmed.fullName,
@@ -105,6 +107,7 @@ export async function confirmAndNotify(booking: Booking, reference: string, chan
     name: confirmed.fullName,
     bookingCode: confirmed.code,
     ...summary,
+    meetingLink,
     email: confirmed.email,
     phone: confirmed.phone,
     paidAt: confirmed.paidAt ?? new Date().toISOString(),
@@ -118,6 +121,7 @@ export async function confirmAndNotify(booking: Booking, reference: string, chan
     amount: summary.amount,
     bookingCode: confirmed.code,
     reference: reference || confirmed.code,
+    meetingLink,
   });
   await Promise.all([
     config.adminEmail ? sendMail({ ...toClient, to: confirmed.email }) : Promise.resolve(false),
@@ -130,6 +134,7 @@ export async function confirmAndNotify(booking: Booking, reference: string, chan
       date: confirmed.preferredDate,
       time: confirmed.preferredTime,
       bookingCode: confirmed.code,
+      meetingLink,
     })),
     sendWhatsAppText(toE164(confirmed.phone), invoiceWhatsApp),
   ]);
