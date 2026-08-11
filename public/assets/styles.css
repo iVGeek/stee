@@ -1105,7 +1105,6 @@ select {
   font-size: 0.82rem;
   color: var(--muted);
 }
-.payment-note { margin-top: 0.4rem; font-size: 0.85rem; color: var(--muted); }
 
 
 .review-summary {
