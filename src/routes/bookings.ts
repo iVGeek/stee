@@ -4,8 +4,8 @@ import { config, formatMoney, getPriceOption } from "../config.js";
 import { bookingCode, randomId, asyncHandler } from "../lib/http.js";
 import { insert, findById, update } from "../lib/store.js";
 import { initializeTransaction, verifyTransaction, isPaystackConfigured } from "../lib/paystack.js";
-import { sendMail, bookingConfirmationEmail, newBookingNotificationEmail } from "../lib/mailer.js";
-import { sendWhatsAppText, bookingNotificationWhatsApp } from "../lib/whatsapp.js";
+import { sendMail, bookingConfirmationEmail, newBookingNotificationEmail, bookingInvoiceEmail } from "../lib/mailer.js";
+import { sendWhatsAppText, bookingNotificationWhatsApp, bookingInvoiceWhatsApp, toE164 } from "../lib/whatsapp.js";
 import { isValidSlot } from "../lib/availability.js";
 
 export interface Booking {
@@ -101,9 +101,28 @@ export async function confirmAndNotify(booking: Booking, reference: string, chan
     notes: confirmed.notes,
     channel,
   });
+  const invoice = bookingInvoiceEmail({
+    name: confirmed.fullName,
+    bookingCode: confirmed.code,
+    ...summary,
+    email: confirmed.email,
+    phone: confirmed.phone,
+    paidAt: confirmed.paidAt ?? new Date().toISOString(),
+    reference: reference || confirmed.code,
+  });
+  const invoiceWhatsApp = bookingInvoiceWhatsApp({
+    name: confirmed.fullName,
+    sessionLabel: confirmed.sessionLabel,
+    date: confirmed.preferredDate,
+    time: confirmed.preferredTime,
+    amount: summary.amount,
+    bookingCode: confirmed.code,
+    reference: reference || confirmed.code,
+  });
   await Promise.all([
     config.adminEmail ? sendMail({ ...toClient, to: confirmed.email }) : Promise.resolve(false),
     config.adminEmail ? sendMail({ ...toAdmin, to: config.adminEmail }) : Promise.resolve(false),
+    config.adminEmail ? sendMail({ ...invoice, to: confirmed.email }) : Promise.resolve(false),
     sendWhatsAppText(config.waToNumber, bookingNotificationWhatsApp({
       name: confirmed.fullName,
       phone: confirmed.phone,
@@ -112,6 +131,7 @@ export async function confirmAndNotify(booking: Booking, reference: string, chan
       time: confirmed.preferredTime,
       bookingCode: confirmed.code,
     })),
+    sendWhatsAppText(toE164(confirmed.phone), invoiceWhatsApp),
   ]);
 }
 

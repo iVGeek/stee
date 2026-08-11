@@ -103,6 +103,76 @@ export function bookingConfirmationEmail(d: BookingMailDetails): MailInput {
   };
 }
 
+/**
+ * Themed invoice email sent to the client once a booking is paid.
+ * Colors mirror the website theme (styles.css :root): primary #135e4b,
+ * surface #f6faf5, surface-alt #d8e9e1, ink #0e241c, muted #44605a,
+ * accent #4cb572, border #b3ccc6, success #2f7a4a.
+ */
+export function bookingInvoiceEmail(d: BookingMailDetails & { email: string; phone: string; paidAt: string; reference: string }): MailInput {
+  const rows: [string, string][] = [
+    ["Billed to", `<b>${d.name}</b>`],
+    ["Email", d.email],
+    ["Phone", d.phone],
+    ["Session", d.sessionLabel],
+    ["Date", d.date],
+    ["Time", d.time],
+    ["Booking reference", `<b>${d.bookingCode}</b>`],
+  ];
+  return {
+    to: d.email,
+    subject: `Invoice ${d.bookingCode} — ${d.amount} paid`,
+    html: `
+    <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;border:1px solid #b3ccc6;border-radius:12px;overflow:hidden">
+      <div style="background:#135e4b;padding:22px 28px;border-bottom:4px solid #4cb572">
+        <div style="color:#f6faf5;font-size:18px;font-weight:700">Kizito Moraa Counselling</div>
+        <div style="color:#a1d8b5;font-size:13px;margin-top:2px">Invoice · ${d.bookingCode}</div>
+      </div>
+      <div style="background:#f6faf5;padding:28px;color:#0e241c">
+        <table style="width:100%;border-collapse:collapse">
+          <tr>
+            <td style="width:70%">
+              <div style="display:inline-block;background:#e3f4ea;color:#2f7a4a;font-weight:700;font-size:12px;padding:4px 12px;border-radius:999px;letter-spacing:0.5px">PAID</div>
+              <h2 style="margin:14px 0 4px;color:#0e241c;font-size:20px">Thanks, ${d.name}!</h2>
+              <p style="margin:0;color:#44605a;font-size:14px">Your payment has been received. Receipt for your session:</p>
+            </td>
+            <td style="text-align:right;vertical-align:top">
+              <div style="color:#44605a;font-size:12px">Amount paid</div>
+              <div style="color:#135e4b;font-size:26px;font-weight:700">${d.amount}</div>
+              <div style="color:#44605a;font-size:12px">on ${d.paidAt}</div>
+            </td>
+          </tr>
+        </table>
+        <table style="width:100%;border-collapse:collapse;margin:18px 0;background:#d8e9e1;border-radius:12px">
+          <tr><td style="padding:14px 18px">
+            <table style="width:100%;border-collapse:collapse">${rows
+              .map(
+                ([k, v]) =>
+                  `<tr><td style="padding:4px 0;color:#44605a;white-space:nowrap;padding-right:16px">${k}</td><td style="padding:4px 0;color:#0e241c">${v}</td></tr>`,
+              )
+              .join("")}</table>
+          </td></tr>
+        </table>
+        <table style="width:100%;border-collapse:collapse">
+          <tr>
+            <td style="padding:10px 0;border-top:1px solid #b3ccc6;color:#44605a">Session fee</td>
+            <td style="padding:10px 0;border-top:1px solid #b3ccc6;color:#0e241c;text-align:right">${d.amount}</td>
+          </tr>
+          <tr>
+            <td style="padding:10px 0;border-top:2px solid #135e4b;color:#0e241c;font-weight:700">Total paid</td>
+            <td style="padding:10px 0;border-top:2px solid #135e4b;color:#135e4b;font-weight:700;text-align:right">${d.amount}</td>
+          </tr>
+        </table>
+        <p style="margin:18px 0 0;color:#44605a;font-size:13px">Payment reference: <b>${d.reference}</b> · Received on ${d.paidAt}</p>
+        <p style="margin:8px 0 0;color:#44605a;font-size:13px">Questions about this invoice? WhatsApp <b>${d.whatsappNumber}</b>.</p>
+      </div>
+      <div style="background:#0e4a3a;padding:14px 28px;color:#a1d8b5;font-size:12px;text-align:center">
+        Kizito Moraa Counselling · Nairobi, Kenya · Thank you for your trust.
+      </div>
+    </div>`,
+  };
+}
+
 export function newBookingNotificationEmail(d: BookingMailDetails & { email: string; notes?: string }): MailInput {
   return {
     to: d.email,
