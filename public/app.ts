@@ -308,7 +308,7 @@ function initPricing(): void {
           <p class="pricing-price">${formatUsd(p.price)}</p>
           <p class="pricing-kes">≈ ${formatMoney(p.price, site.currency)}</p>
           <p class="pricing-desc">${escapeHtml(p.description)}</p>
-          <a class="btn ${featured ? "btn-primary" : "btn-outline"}" href="#booking" data-select-package="${p.id}">Book this →</a>
+          <a class="btn btn-outline" href="#booking" data-select-package="${p.id}">Book this →</a>
         </article>`;
     })
     .join("");
